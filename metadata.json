@@ -1,0 +1,8 @@
+{
+  "name": "Ink&Print By Denise",
+  "description": "Portavoce professionale di consumabili per la stampa, toner compatibili e servizi B2B personalizzati per aziende e uffici.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

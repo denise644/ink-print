@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Common Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    // B2B Requests Validation
+    function isValidB2BRequest(data) {
+      return data.keys().hasAll(['id', 'name', 'email', 'products', 'status', 'createdAt']) &&
+             data.keys().size() <= 12 &&
+             data.id is string && data.id.size() <= 64 &&
+             data.name is string && data.name.size() <= 200 &&
+             data.email is string && data.email.size() <= 200 &&
+             data.products is string && data.products.size() <= 2000 &&
+             data.status in ['pending', 'processed', 'rejected'] &&
+             data.createdAt == request.time &&
+             (data.company == null || (data.company is string && data.company.size() <= 200)) &&
+             (data.phone == null || (data.phone is string && data.phone.size() <= 50)) &&
+             (data.vatId == null || (data.vatId is string && data.vatId.size() <= 50)) &&
+             (data.qty == null || (data.qty is string && data.qty.size() <= 50)) &&
+             (data.message == null || (data.message is string && data.message.size() <= 2000)) &&
+             (data.fileName == null || (data.fileName is string && data.fileName.size() <= 200));
+    }
+
+    match /b2b_requests/{requestId} {
+      allow create: if isValidId(requestId) && isValidB2BRequest(incoming());
+      allow get, list: if isAdmin();
+      allow update: if isAdmin() && isValidB2BRequest(incoming()) && 
+                    incoming().diff(resource.data).affectedKeys().hasOnly(['status']);
+      allow delete: if isAdmin();
+    }
+    
+    match /admins/{adminId} {
+      allow read: if isSignedIn() && request.auth.uid == adminId;
+    }
+  }
+}

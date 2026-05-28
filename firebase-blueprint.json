@@ -1,0 +1,30 @@
+{
+  "entities": {
+    "b2b_request": {
+      "title": "B2B Request",
+      "description": "A request for a B2B quote from a business client.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "company": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "vatId": { "type": "string" },
+        "qty": { "type": "string" },
+        "products": { "type": "string" },
+        "message": { "type": "string" },
+        "fileName": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "processed", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "products", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/b2b_requests/{requestId}": {
+      "schema": "b2b_request",
+      "description": "Collection of B2B quote requests."
+    }
+  }
+}
