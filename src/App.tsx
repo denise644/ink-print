@@ -25,6 +25,7 @@ import { TerminiCondizioni } from './TerminiCondizioni.tsx';
 import { Contatti } from './Contatti.tsx';
 import { Product } from './types.ts';
 import { CartProvider } from './CartContext.tsx';
+import { SupabaseProductsSection } from './components/SupabaseProductsSection.tsx';
 import { useEffect } from 'react';
 import { Laptop, Wifi, Shield, Smartphone, PenTool, Headphones, ShoppingCart, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -84,6 +85,9 @@ const HomePage = ({ onNavigate }: { onNavigate: (page: string, data?: any) => vo
           </div>
         </div>
       </section>
+
+      {/* Dynamic Products from Supabase */}
+      <SupabaseProductsSection onNavigate={onNavigate} />
 
       <GaranziaProdotti />
       <ChiSiamo />

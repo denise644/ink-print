@@ -340,164 +340,16 @@ async function startServer() {
   });
 
   // Orders In-Memory Database
-  const orders = [
-    {
-      orderNumber: "PT-10381",
-      date: "20/05/2026",
-      status: "pending_payment",
-      shippingMethod: "Corriere Espresso - Consegna 24/48h",
-      carrier: "GLS",
-      trackingCode: "IT10384812",
-      trackingUrl: "https://www.gls-italy.com/",
-      paymentMethod: "Bonifico Bancario",
-      items: [
-        { id: "gen-2", name: "Toner Compatibile Brother TN241 BK", quantity: 2, price: 14.50 }
-      ],
-      customer: {
-        name: "Luigi Verdi",
-        address: "Via Torino 14",
-        city: "Milano",
-        province: "MI",
-        zip: "20123",
-        phone: "+39 345 6789012",
-        email: "luigi.verdi@gmail.com"
-      },
-      total: 29.00,
-      bollaGenerata: false
-    },
-    {
-      orderNumber: "PT-10382",
-      date: "21/05/2026",
-      status: "processing",
-      shippingMethod: "Corriere Espresso - Consegna 24/48h",
-      carrier: "Bartolini",
-      trackingCode: "BRT8849102",
-      trackingUrl: "https://www.brt.it/",
-      paymentMethod: "Carta di Credito",
-      items: [
-        { id: "gen-8", name: "Toner Compatibile Brother TN 241 BK", quantity: 3, price: 19.90 },
-        { id: "gen-12", name: "Inchiostro Compatibile Canon PG-540", quantity: 5, price: 8.50 }
-      ],
-      customer: {
-        name: "Azienda Tech S.r.l.",
-        address: "Corso Sempione 88",
-        city: "Milano",
-        province: "MI",
-        zip: "20154",
-        phone: "+39 02 8839441",
-        email: "office@techsrl.it"
-      },
-      total: 102.20,
-      bollaGenerata: true
-    },
-    {
-      orderNumber: "PT-10383",
-      date: "22/05/2026",
-      status: "shipped",
-      shippingMethod: "Corriere Espresso - Consegna 24/48h",
-      carrier: "SDA",
-      trackingCode: "SDA03829103",
-      trackingUrl: "https://www.sda.it/",
-      paymentMethod: "PayPal",
-      items: [
-        { id: "gen-5", name: "Cartuccia Compatibile Epson 603XL BK", quantity: 2, price: 14.50 }
-      ],
-      customer: {
-        name: "Elena Bianchi",
-        address: "Via Garibaldi 40",
-        city: "Roma",
-        province: "RM",
-        zip: "00153",
-        phone: "+39 333 4455667",
-        email: "elena.bianchi@outlook.it"
-      },
-      total: 29.00,
-      bollaGenerata: false
-    }
-  ];
+  const orders: any[] = [];
 
-  const notifications = [
-    {
-      id: "not-1",
-      orderNumber: "PT-10381",
-      timestamp: "20/05/2026 10:15",
-      recipient: "luigi.verdi@gmail.com",
-      subject: "Conferma Ordine PT-10381 - Ink&Print By Denise",
-      type: "order_confirmation",
-      body: "Gentile Luigi Verdi,\n\ngrazie per aver acquistato su Ink&Print By Denise! Il tuo ordine numero PT-10381 è stato registrato nei nostri sistemi.\n\nStato: In attesa di pagamento."
-    },
-    {
-      id: "not-2",
-      orderNumber: "PT-10381",
-      timestamp: "20/05/2026 10:16",
-      recipient: "luigi.verdi@gmail.com",
-      subject: "Istruzioni per l'effettuazione del Bonifico - Ordine PT-10381",
-      type: "wire_instructions",
-      body: "Gentile Luigi Verdi,\n\nper completare il tuo ordine, effettua un bonifico bancario con i seguenti dati:\n\nBeneficiario: Ink&Print By Denise\nIBAN: IT42 N036 6901 6005 1403 9448 155\nCausale: Pagamento Ordine PT-10381\nImporto: €29.00\n\nSpediremo i tuoi materiali per la stampa non appena riceveremo l'accredito."
-    }
-  ];
+  const notifications: any[] = [];
 
   // --- Quotes & Job Applications Memory Databases ---
-  const quotes = [
-    {
-      id: "QT-1001",
-      date: "22/05/2026",
-      name: "Marcello Salis",
-      company: "Studio Associato Salis & Partners",
-      email: "m.salis@salisce.it",
-      phone: "+39 349 8127391",
-      vatId: "IT02938102938",
-      qty: 25,
-      products: "Fornitura completa Toner Brother TN-2420 compatibili",
-      message: "Richiediamo quotazione per contratto di fornitura annuale con consegna trimestrale presso la nostra sede di Cagliari.",
-      fileName: "lista_toner_cagliari.pdf",
-      status: "pending_review"
-    }
-  ];
+  const quotes: any[] = [];
 
-  const jobApplications = [
-    {
-      id: "CV-101",
-      date: "22/05/2026",
-      firstName: "Claudio",
-      lastName: "Rizzo",
-      email: "claudio.rizzo94@gmail.com",
-      phone: "+39 328 1122334",
-      position: "magazzino",
-      message: "Ho maturato 3 anni di esperienza nella gestione del carico/scarico merci presso un polo logistico a Piacenza. Automunito, patentino carrello elevatore attivo.",
-      fileName: "CV_Claudio_Rizzo_Logistica.pdf",
-      status: "reviewed"
-    }
-  ];
+  const jobApplications: any[] = [];
 
-  const refunds = [
-    {
-      id: "RF-1021",
-      orderNumber: "PT-10381",
-      date: "24/05/2026",
-      customerName: "Luigi Verdi",
-      email: "luigi.verdi@gmail.com",
-      phone: "+39 347 1234567",
-      items: "2x Toner Compatibile TN-2420 - BK",
-      reason: "Articolo ordinato per errore. La mia stampante Brother supporta la serie TN-1050.",
-      status: "pending", // "pending" | "approved" | "rejected"
-      note: "",
-      returnedProducts: "TN-2420-BK"
-    },
-    {
-      id: "RF-1020",
-      orderNumber: "PT-10382",
-      date: "21/05/2026",
-      customerName: "Azienda Tech S.r.l.",
-      email: "office@techsrl.it",
-      phone: "+39 02 8839441",
-      items: "1x Drum Brother DR-2400",
-      reason: "Difetto di stampa (righe nere sul foglio). Sostituzione in garanzia richiesta.",
-      status: "approved",
-      note: "Sostituzione deliberata dal nostro laboratorio tecnico. Spedito DR-2400 sostitutivo.",
-      returnedProducts: "DR2400-BK"
-    }
-  ];
+  const refunds: any[] = [];
 
   // Helper function to log notification
   function logNotification(orderNumber: string, recipient: string, type: string, subject: string, body: string) {

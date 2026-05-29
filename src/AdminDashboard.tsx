@@ -99,7 +99,7 @@ const generateClientDaneaXml = (ordersList: any[]) => {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigate }) => {
   // Authentication states
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [inputPasscode, setInputPasscode] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [storedPasscode, setStoredPasscode] = useState("inkeprint2026");

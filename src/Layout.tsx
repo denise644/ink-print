@@ -68,15 +68,6 @@ export const Navbar = ({ onSearch, onNavigate }: { onSearch: (val: string) => vo
           </div>
           
           <div className="flex items-center gap-4 text-slate-700">
-            <button 
-              onClick={() => onNavigate('admin')} 
-              className="hidden md:flex items-center gap-1.5 text-xs font-black text-slate-705 hover:text-blue-600 transition-all border border-slate-200 hover:border-blue-250 px-3 py-1.5 rounded-xl uppercase tracking-wider bg-slate-50"
-              title="Console di Amministrazione"
-              id="admin-nav-btn"
-            >
-              <User size={14} className="text-blue-600" />
-              <span>Accesso Admin</span>
-            </button>
             <button onClick={() => onNavigate('carrello')} className="relative hover:text-blue-600 transition-colors">
               <ShoppingCart size={24} />
               {itemCount > 0 && (
