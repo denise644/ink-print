@@ -1,8 +1,12 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { parse } from "csv-parse/sync";
 import { GoogleGenAI } from "@google/genai";
+import { createClient } from "@supabase/supabase-js";
 
 import productsData from "./src/data/products.json";
 
@@ -17,6 +21,183 @@ interface Product {
   compatibility: string[];
   description: string;
   image: string;
+}
+
+// Supabase server connection setup
+const serverSupabaseUrlRaw = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const serverSupabaseUrl = serverSupabaseUrlRaw.trim().replace(/\/rest\/v1\/?$/, "").replace(/\/+$/, "");
+const serverSupabaseAnonKey = (process.env.VITE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "").trim();
+
+const serverSupabase = serverSupabaseUrl && serverSupabaseAnonKey
+  ? createClient(serverSupabaseUrl, serverSupabaseAnonKey)
+  : null;
+
+// Log Supabase configuration status in console for debugging
+if (serverSupabase) {
+  console.log("Supabase backend client connected successfully utilizing Endpoint:", serverSupabaseUrl);
+} else {
+  console.warn("Supabase credentials missing on server. Falling back to mock database.");
+}
+
+// In-Memory cache for Supabase products to maintain snappy API response times and protect DB query limits
+let cachedSupabaseProducts: Product[] | null = null;
+let cacheTimestamp = 0;
+const CACHE_TTL_MS = 5000; // 5 seconds cache
+
+function mapServerSupabaseToProducts(data: any[]): Product[] {
+  return data.map((item: any) => {
+    let compatibilityArray: string[] = [];
+    const rawComp = item.compatibility || item.compatibilita || item.compatible || '';
+    if (Array.isArray(rawComp)) {
+      compatibilityArray = rawComp.map(String);
+    } else if (typeof rawComp === 'string') {
+      const trimmed = rawComp.trim();
+      if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            compatibilityArray = parsed.map(String);
+          } else {
+            compatibilityArray = [String(parsed)];
+          }
+        } catch {
+          compatibilityArray = trimmed.split(',').map(s => s.trim()).filter(Boolean);
+        }
+      } else if (trimmed) {
+        compatibilityArray = trimmed.split(',').map(s => s.trim()).filter(Boolean);
+      }
+    }
+    const priceValue = item.price !== undefined ? item.price : (item.prezzo !== undefined ? item.prezzo : 0);
+
+    // Heuristic Category mapping
+    let category = String(item.category || item.categoria || '');
+    if (!category) {
+      const n = String(item.name || '').toLowerCase();
+      if (n.includes('toner compatibile') || n.includes('compatibile brother') || n.includes('compatibile samsung') || n.includes('compatibile hp') || n.includes('toner dhea')) {
+        category = 'Toner Compatibili';
+      } else if (n.includes('toner originale') || n.includes('originale brother') || n.includes('originale canon')) {
+        category = 'Toner Originali';
+      } else if (n.includes('cartuccia compatibile') || n.includes('inchiostro compatibile') || n.includes('compatibile epson') || n.includes('cartucce compatibili')) {
+        category = 'Cartucce Compatibili';
+      } else if (n.includes('drum') || n.includes('tamburo')) {
+        category = 'Drum Compatibili';
+      } else {
+        category = 'Toner Compatibili';
+      }
+    }
+
+    // Heuristic Brand mapping
+    let brand = String(item.brand || item.marca || '');
+    if (!brand) {
+      const n = String(item.name || '').toLowerCase();
+      if (n.includes('brother')) brand = 'Brother';
+      else if (n.includes('hp')) brand = 'HP';
+      else if (n.includes('epson')) brand = 'Epson';
+      else if (n.includes('canon')) brand = 'Canon';
+      else if (n.includes('samsung')) brand = 'Samsung';
+      else brand = 'Generico';
+    }
+
+    // SKU Mapping
+    const sku = String(item.sku || item.code || 'IP-' + item.id);
+
+    // Image Mapping
+    let image = String(item.image || item.immagine || item.image_url || '');
+    if (!image || image.includes('unsplash.com') || image.includes('placeholder.com')) {
+      const catLower = category.toLowerCase();
+      const nameLower = String(item.name || '').toLowerCase();
+      const isCyan = nameLower.includes('cyan') || nameLower.includes('ciano') || nameLower.includes('azure') || nameLower.includes('azzurro') || nameLower.includes('-c') || nameLower.includes(' c ');
+      const isMagenta = nameLower.includes('magenta') || nameLower.includes('-m') || nameLower.includes(' m ');
+      const isYellow = nameLower.includes('yellow') || nameLower.includes('giallo') || nameLower.includes('-y') || nameLower.includes(' y ');
+      const isOriginal = catLower.includes('original');
+
+      if (catLower.includes('inchiostr') || catLower.includes('ink')) {
+        image = "/src/assets/images/inkjet_compat_generic_template_1779959041117.png";
+      } else if (isOriginal && (catLower.includes('cartucc') || catLower.includes('inkjet'))) {
+        image = "/src/assets/images/inkjet_orig_template_2_1779958733126.png";
+      } else if (catLower.includes('cartucc')) {
+        image = "/src/assets/images/inkjet_compat_generic_template_1779959041117.png";
+      } else if (catLower.includes('drum') || catLower.includes('tambur') || catLower.includes('gruppo')) {
+        image = "/src/assets/images/drum_unit_premium_template_1779959019359.png";
+      } else if (catLower.includes('toner') || catLower.includes('laser')) {
+        if (isCyan || isMagenta || isYellow) {
+          image = "/src/assets/images/toner_compat_cmy_premium_1779959002014.png";
+        } else {
+          image = "/src/assets/images/toner_compat_bk_premium_1779958984462.png";
+        }
+      } else {
+        image = "/src/assets/images/toner_compat_bk_premium_1779958984462.png";
+      }
+    }
+
+    // Description Mapping
+    const description = String(item.description || item.descrizione || `Prodotto professionale di alta qualità per la tua stampante ${brand}. Garanzia Ink&Print By Denise.`);
+
+    return {
+      id: String(item.id || sku),
+      sku: sku,
+      name: String(item.name || item.nome || item.title || 'Prodotto Senza Nome'),
+      category: category,
+      brand: brand,
+      price: Number(priceValue) || 0,
+      availability: item.availability !== undefined 
+        ? Boolean(item.availability) 
+        : (item.disponibilita !== undefined ? Boolean(item.disponibilita) : true),
+      compatibility: compatibilityArray,
+      description: description,
+      image: image
+    };
+  });
+}
+
+async function withTimeout<T>(promise: PromiseLike<T> | any, timeoutMs: number): Promise<T> {
+  let timeoutId: any;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(`Timeout of ${timeoutMs}ms exceeded`)), timeoutMs);
+  });
+  return Promise.race([
+    Promise.resolve(promise).then(res => {
+      clearTimeout(timeoutId);
+      return res;
+    }),
+    timeoutPromise
+  ]);
+}
+
+async function getSupabaseProducts(): Promise<Product[]> {
+  if (!serverSupabase) return [];
+  const now = Date.now();
+  if (cachedSupabaseProducts && (now - cacheTimestamp < CACHE_TTL_MS)) {
+    return cachedSupabaseProducts;
+  }
+
+  try {
+    const queryPromise = serverSupabase
+      .from('products')
+      .select('*');
+    
+    const { data, error } = await withTimeout<any>(queryPromise, 2500);
+    
+    if (error) {
+      console.warn("products table error, fetching from lookup backup:", error.message);
+      const fallbackQueryPromise = serverSupabase
+        .from('prodotti')
+        .select('*');
+      const { data: fallbackData, error: fallbackError } = await withTimeout<any>(fallbackQueryPromise, 2500);
+      if (fallbackError) {
+        throw fallbackError;
+      }
+      cachedSupabaseProducts = mapServerSupabaseToProducts(fallbackData || []);
+      cacheTimestamp = Date.now();
+      return cachedSupabaseProducts;
+    }
+    cachedSupabaseProducts = mapServerSupabaseToProducts(data || []);
+    cacheTimestamp = Date.now();
+    return cachedSupabaseProducts || [];
+  } catch (err) {
+    console.error("Critical: Could not retrieve products from Supabase on backend:", err);
+    return [];
+  }
 }
 
 // Data loaded from processed document
@@ -62,20 +243,31 @@ async function startServer() {
 
   app.use(express.json({ limit: '10mb' }));
 
-  const ai = new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY || "",
-    httpOptions: {
-      headers: {
-        'User-Agent': 'aistudio-build',
+  let aiClient: GoogleGenAI | null = null;
+  const getGoogleGenAI = (): GoogleGenAI => {
+    if (!aiClient) {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error("GEMINI_API_KEY is missing/not configured in environment.");
       }
+      aiClient = new GoogleGenAI({
+        apiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          }
+        }
+      });
     }
-  });
+    return aiClient;
+  };
 
   // API Routes
   app.post("/api/chat", async (req, res) => {
     try {
       const { message, history } = req.body;
       
+      const ai = getGoogleGenAI();
       const chat = ai.chats.create({
         model: "gemini-3-flash-preview",
         config: {
@@ -103,8 +295,16 @@ async function startServer() {
     }
   });
 
-  app.get("/api/products", (req, res) => {
-    let filtered = [...products];
+  app.get("/api/products", async (req, res) => {
+    let sourceProducts: Product[] = [];
+    if (serverSupabase) {
+      sourceProducts = await getSupabaseProducts();
+    }
+    if (!sourceProducts || sourceProducts.length === 0) {
+      sourceProducts = [...products];
+    }
+
+    let filtered = [...sourceProducts];
     const { category, brand, search, sort, minPrice, maxPrice } = req.query;
 
     if (category && category !== 'All') filtered = filtered.filter(p => p.category === category);
@@ -133,14 +333,108 @@ async function startServer() {
     res.json(filtered);
   });
 
-  app.get("/api/categories", (req, res) => {
-    const categories = Array.from(new Set(products.map(p => p.category)));
+  app.get("/api/categories", async (req, res) => {
+    let sourceProducts: Product[] = [];
+    if (serverSupabase) {
+      sourceProducts = await getSupabaseProducts();
+    }
+    if (!sourceProducts || sourceProducts.length === 0) {
+      sourceProducts = [...products];
+    }
+    const categories = Array.from(new Set(sourceProducts.map(p => p.category)));
     res.json(categories);
   });
 
-  app.get("/api/brands", (req, res) => {
-    const brands = Array.from(new Set(products.map(p => p.brand)));
+  app.get("/api/brands", async (req, res) => {
+    let sourceProducts: Product[] = [];
+    if (serverSupabase) {
+      sourceProducts = await getSupabaseProducts();
+    }
+    if (!sourceProducts || sourceProducts.length === 0) {
+      sourceProducts = [...products];
+    }
+    const brands = Array.from(new Set(sourceProducts.map(p => p.brand)));
     res.json(brands);
+  });
+
+  app.get("/api/products-count", async (req, res) => {
+    let sourceProducts: Product[] = [];
+    if (serverSupabase) {
+      sourceProducts = await getSupabaseProducts();
+    }
+    if (!sourceProducts || sourceProducts.length === 0) {
+      sourceProducts = [...products];
+    }
+    res.json({ count: sourceProducts.length });
+  });
+
+  app.get("/api/supabase-diagnostic", async (req, res) => {
+    const configured = !!(serverSupabaseUrl && serverSupabaseAnonKey);
+    const maskedKey = serverSupabaseAnonKey
+      ? `${serverSupabaseAnonKey.slice(0, 8)}...${serverSupabaseAnonKey.slice(-8)}`
+      : "Non Configurato";
+    
+    if (!configured) {
+      return res.json({
+        success: false,
+        configured: false,
+        url: serverSupabaseUrl || "Mancante",
+        maskedKey,
+        error: "Il client Supabase sul server non è configurato. Assicurati che le variabili di ambiente VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY o NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY siano impostate.",
+        count: 0
+      });
+    }
+
+    try {
+      const queryPromise = serverSupabase!.from('products').select('*', { count: 'exact', head: true });
+      const { count, error } = await withTimeout<any>(queryPromise, 6000);
+
+      if (error) {
+        // Fallback lookup table
+        const fallbackPromise = serverSupabase!.from('prodotti').select('*', { count: 'exact', head: true });
+        const { count: fallbackCount, error: fallbackError } = await withTimeout<any>(fallbackPromise, 6000);
+        
+        if (fallbackError) {
+          return res.json({
+            success: false,
+            configured: true,
+            url: serverSupabaseUrl,
+            maskedKey,
+            error: `Impossibile leggere la tabella 'products' (${error.message}) E anche il tentativo sulla tabella 'prodotti' è fallito (${fallbackError.message}).`,
+            count: 0
+          });
+        }
+        
+        return res.json({
+          success: true,
+          configured: true,
+          url: serverSupabaseUrl,
+          table: "prodotti",
+          maskedKey,
+          count: fallbackCount || 0,
+          message: "Connessione riuscita alla tabella di fallback 'prodotti'."
+        });
+      }
+
+      return res.json({
+        success: true,
+        configured: true,
+        url: serverSupabaseUrl,
+        table: "products",
+        maskedKey,
+        count: count || 0,
+        message: "Connessione riuscita alla tabella principale 'products'."
+      });
+    } catch (err: any) {
+      return res.json({
+        success: false,
+        configured: true,
+        url: serverSupabaseUrl,
+        maskedKey,
+        error: err?.message || String(err),
+        count: 0
+      });
+    }
   });
 
   const imageCache = new Map<string, string>();
@@ -332,6 +626,33 @@ async function startServer() {
       }));
 
       products = [...products, ...newProducts];
+
+      if (serverSupabase) {
+        (async () => {
+          try {
+            console.log("Upserting new products into Supabase products table...");
+            const dbPayloads = newProducts.map((p: any) => ({
+              id: parseInt(p.id) || undefined,
+              name: p.name,
+              price: p.price,
+              compatibility: p.compatibility
+            }));
+
+            const { error: batchErr } = await serverSupabase
+              .from("products")
+              .upsert(dbPayloads, { onConflict: "id" });
+            
+            if (batchErr) {
+              console.error("Supabase import-csv batch error:", batchErr.message);
+            } else {
+              console.log("Imported products successfully upserted to Supabase!");
+            }
+          } catch (batchCatch) {
+            console.error("Supabase import-csv batch crash:", batchCatch);
+          }
+        })();
+      }
+
       res.json({ success: true, count: newProducts.length });
     } catch (error) {
       console.error(error);
@@ -584,6 +905,47 @@ async function startServer() {
 
       // Add to front of orders database
       orders.unshift(newOrder);
+
+      // Save order and customer to Supabase if connected
+      if (serverSupabase) {
+        (async () => {
+          try {
+            console.log("Saving customer to Supabase customers table...");
+            const fullAddress = `${customer.address || ""}, ${customer.city || ""} (${customer.province || ""}) - ${customer.zip || ""}`;
+            
+            const { error: custErr } = await serverSupabase
+              .from("customers")
+              .upsert({
+                email: customer.email,
+                phone: customer.phone || "",
+                address: fullAddress
+              }, { onConflict: "email" });
+
+            if (custErr) {
+              console.error("Supabase error inserting customer:", custErr.message);
+            } else {
+              console.log("Customer saved to Supabase successfully.");
+            }
+
+            console.log("Saving order to Supabase orders table...");
+            const { error: ordErr } = await serverSupabase
+              .from("orders")
+              .insert({
+                status: status,
+                customer_name: customer.name || "",
+                customer_email: customer.email || ""
+              });
+
+            if (ordErr) {
+              console.error("Supabase error inserting order:", ordErr.message);
+            } else {
+              console.log("Order saved to Supabase successfully.");
+            }
+          } catch (dbErr: any) {
+            console.error("Critical: Failed to save to Supabase from checkout handler:", dbErr.message);
+          }
+        })();
+      }
 
       // --- Automate Email Notification Actions ---
       // 1. Order Confirmation (Client)

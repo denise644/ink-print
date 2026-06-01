@@ -5,7 +5,7 @@ import { useCart } from './CartContext.tsx';
 import { ProductImage } from './components/ProductImage.tsx';
 import { motion } from 'motion/react';
 
-export const ChiSiamo = () => {
+export const ChiSiamo = ({ productCount }: { productCount?: number | null }) => {
   return (
     <section className="py-24 bg-slate-50">
       <div className="max-w-7xl mx-auto px-4">
@@ -23,7 +23,7 @@ export const ChiSiamo = () => {
               La nostra missione è offrire prodotti affidabili, compatibilità garantita e assistenza dedicata per privati e aziende.
             </p>
             <p className="text-slate-600 font-medium leading-relaxed">
-              Scegliamo solo i migliori fornitori per garantire stampe di qualità professionale a un prezzo contenuto. Con oltre 1.500 articoli a catalogo, 
+              Scegliamo solo i migliori fornitori per garantire stampe di qualità professionale a un prezzo contenuto. Con oltre {productCount ? productCount.toLocaleString('it-IT') : '1.500'} articoli a catalogo, 
               siamo il punto di riferimento per chi cerca convenienza senza compromessi.
             </p>
             <div className="grid grid-cols-2 gap-6 pt-4">
@@ -255,7 +255,7 @@ export const ProductCard = ({ product, onNavigate }: { product: Product, key?: R
   );
 };
 
-export const Hero = ({ onNavigate }: { onNavigate: (page: string) => void }) => {
+export const Hero = ({ onNavigate, productCount }: { onNavigate: (page: string) => void, productCount?: number | null }) => {
   return (
     <section className="relative overflow-hidden bg-brand-medium py-16 lg:py-24">
       {/* Background patterns */}
@@ -280,7 +280,7 @@ export const Hero = ({ onNavigate }: { onNavigate: (page: string) => void }) => 
           
           <p className="text-lg text-blue-100/70 max-w-lg leading-relaxed font-bold uppercase tracking-tight">
             L'hub tecnologico per i tuoi consumabili. <br/>
-            <span className="text-blue-400">Qualità Premium</span> garantita su over 1.500 articoli con logistica express.
+            <span className="text-blue-400">Qualità Premium</span> garantita su over {productCount ? productCount.toLocaleString('it-IT') : '1.500'} articoli con logistica express.
           </p>
  
           <div className="flex flex-wrap gap-5 pt-4">

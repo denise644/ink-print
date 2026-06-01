@@ -25,15 +25,14 @@ import { TerminiCondizioni } from './TerminiCondizioni.tsx';
 import { Contatti } from './Contatti.tsx';
 import { Product } from './types.ts';
 import { CartProvider } from './CartContext.tsx';
-import { SupabaseProductsSection } from './components/SupabaseProductsSection.tsx';
 import { useEffect } from 'react';
 import { Laptop, Wifi, Shield, Smartphone, PenTool, Headphones, ShoppingCart, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-const HomePage = ({ onNavigate }: { onNavigate: (page: string, data?: any) => void }) => {
+const HomePage = ({ onNavigate, productCount }: { onNavigate: (page: string, data?: any) => void, productCount: number | null }) => {
   return (
     <div>
-      <Hero onNavigate={onNavigate} />
+      <Hero onNavigate={onNavigate} productCount={productCount} />
       <ComeFunziona onNavigate={onNavigate} />
       
       {/* Featured Categories */}
@@ -54,10 +53,10 @@ const HomePage = ({ onNavigate }: { onNavigate: (page: string, data?: any) => vo
           
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
             {[
-              { icon: PenTool, image: "", title: "Toner", desc: "Compatibili e Originali", color: "bg-blue-100 text-blue-600", slug: "Toner Compatibili" },
-              { icon: ShoppingCart, image: "", title: "Inkjet", desc: "Qualità Garantita", color: "bg-indigo-100 text-indigo-600", slug: "Cartucce Compatibili" },
+              { icon: null, image: "/src/assets/images/toner_compat_cmy_premium_1779959002014.png", title: "Toner", desc: "Compatibili e Originali", color: "bg-blue-100 text-blue-600", slug: "Toner Compatibili" },
+              { icon: null, image: "/src/assets/images/inkjet_compat_generic_template_1779959041117.png", title: "Inkjet", desc: "Qualità Garantita", color: "bg-indigo-100 text-indigo-600", slug: "Cartucce Compatibili" },
+              { icon: null, image: "/src/assets/images/drum_unit_premium_template_1779959019359.png", title: "Drum", desc: "Accessori e Unità", color: "bg-purple-100 text-purple-600", slug: "Drum" },
               { icon: Headphones, image: "", title: "Supporto", desc: "Assistenza Tecnica", color: "bg-green-100 text-green-600", slug: "assistenza" },
-              { icon: null, image: "https://www.framatek.com/7471-thickbox_default/drum-compatibile-brother-dr-3400-bk.jpg", title: "Drum", desc: "Accessori e Unità", color: "bg-purple-100 text-purple-600", slug: "Drum" },
             ].map((cat, i) => {
               const IconComp = cat.icon;
               return (
@@ -85,12 +84,9 @@ const HomePage = ({ onNavigate }: { onNavigate: (page: string, data?: any) => vo
           </div>
         </div>
       </section>
-
-      {/* Dynamic Products from Supabase */}
-      <SupabaseProductsSection onNavigate={onNavigate} />
-
+ 
       <GaranziaProdotti />
-      <ChiSiamo />
+      <ChiSiamo productCount={productCount} />
       <PreventiviAziendali onNavigate={onNavigate} />
 
       {/* CTA Section */}
@@ -126,6 +122,18 @@ export default function App() {
   const [activeOrderData, setActiveOrderData] = useState<any>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showCookieBanner, setShowCookieBanner] = useState(false);
+  const [productCount, setProductCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch('/api/products-count')
+      .then(res => res.json())
+      .then(data => {
+        if (data && typeof data.count === 'number') {
+          setProductCount(data.count);
+        }
+      })
+      .catch(err => console.error("Error loading products count:", err));
+  }, []);
 
   useEffect(() => {
     // Gestione dei path per simulare il routing
@@ -222,7 +230,7 @@ export default function App() {
         <Navbar onSearch={handleSearch} onNavigate={handleNavigate} />
         
         <main>
-          {currentPage === 'home' && <HomePage onNavigate={handleNavigate} />}
+          {currentPage === 'home' && <HomePage onNavigate={handleNavigate} productCount={productCount} />}
           {currentPage === 'catalog' && <Catalog initialSearch={globalSearch} initialCategory={activeCategory} onNavigate={handleNavigate} />}
           {currentPage === 'listino' && <CatalogListino />}
           {currentPage === 'ordini' && <TrackOrder onNavigate={handleNavigate} />}

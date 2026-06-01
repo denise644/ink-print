@@ -273,13 +273,21 @@ export const Footer = ({ onNavigate }: { onNavigate: (page: string, category?: s
           {/* Catalog Segments Column */}
           <div>
             <h4 className="text-white font-black text-xs uppercase tracking-wider mb-6 border-l-2 border-blue-600 pl-3">Catalogo Prodotti</h4>
-            <ul className="space-y-3.5 text-xs font-semibold">
+            <ul className="space-y-3.5 text-xs font-semibold font-sans">
               <li>
                 <span 
                   onClick={() => onNavigate('catalog', 'Toner Compatibili')}
                   className="hover:text-blue-400 hover:pl-1.5 cursor-pointer transition-all duration-205 flex items-center gap-1"
                 >
-                  • Toner Compatibili Premium
+                  • Toner Compatibili
+                </span>
+              </li>
+              <li>
+                <span 
+                  onClick={() => onNavigate('catalog', 'Toner Originali')}
+                  className="hover:text-blue-400 hover:pl-1.5 cursor-pointer transition-all duration-205 flex items-center gap-1"
+                >
+                  • Toner Originali
                 </span>
               </li>
               <li>
@@ -292,26 +300,26 @@ export const Footer = ({ onNavigate }: { onNavigate: (page: string, category?: s
               </li>
               <li>
                 <span 
-                  onClick={() => onNavigate('catalog', 'Toner Originali')}
+                  onClick={() => onNavigate('catalog', 'Cartucce Originali')}
                   className="hover:text-blue-400 hover:pl-1.5 cursor-pointer transition-all duration-205 flex items-center gap-1"
                 >
-                  • Consumabili di Marca Originali
+                  • Inkjet Originali
                 </span>
               </li>
               <li>
                 <span 
-                  onClick={() => onNavigate('catalog', 'Networking')}
+                  onClick={() => onNavigate('catalog', 'Tamburi')}
                   className="hover:text-blue-400 hover:pl-1.5 cursor-pointer transition-all duration-205 flex items-center gap-1"
                 >
-                  • Reti e Networking Lan
+                  • Drum
                 </span>
               </li>
               <li>
                 <span 
-                  onClick={() => onNavigate('catalog', 'Smart Home')}
+                  onClick={() => onNavigate('catalog', 'Inchiostri')}
                   className="hover:text-blue-400 hover:pl-1.5 cursor-pointer transition-all duration-205 flex items-center gap-1"
                 >
-                  • Dispositivi Smart Home & IoT
+                  • Inchiostri Compatibili
                 </span>
               </li>
             </ul>

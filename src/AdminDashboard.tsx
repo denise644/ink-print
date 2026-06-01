@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Package, TrendingUp, Clock, Search, Printer, RefreshCw, 
   FileText, Mail, Smartphone, Truck, Check, X, Shield, 
-  Download, Eye, AlertCircle, Lock, Settings, Layers, Inbox, ChevronRight, Key
+  Download, Eye, AlertCircle, Lock, Settings, Layers, Inbox, ChevronRight, Key, Database
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -14,6 +14,7 @@ interface AdminDashboardProps {
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from './lib/firebase';
 import { handleFirestoreError, OperationType } from './lib/firebaseUtils';
+import { SupabaseDiagnosticPage } from './components/SupabaseDiagnosticPage';
 
 // XML helpers for Danea Easyfatt Export
 function escapeXml(unsafe: string): string {
@@ -99,10 +100,10 @@ const generateClientDaneaXml = (ordersList: any[]) => {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNavigate }) => {
   // Authentication states
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [inputPasscode, setInputPasscode] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  const [storedPasscode, setStoredPasscode] = useState("inkeprint2026");
+  const [storedPasscode, setStoredPasscode] = useState("INKPRINT2026");
 
   // Domain states
   const [orders, setOrders] = useState<any[]>([]);
@@ -111,7 +112,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
   const [jobApplications, setJobApplications] = useState<any[]>([]);
   const [refunds, setRefunds] = useState<any[]>([]);
   
-  const [dashboardTab, setDashboardTab] = useState<"overview" | "orders" | "refunds" | "quotes" | "settings" | "notifications" | "danea">("overview");
+  const [dashboardTab, setDashboardTab] = useState<"overview" | "orders" | "refunds" | "quotes" | "settings" | "notifications" | "danea" | "supabase">("overview");
   const [xmlPreview, setXmlPreview] = useState<string>("");
   const [errorPreview, setErrorPreview] = useState<string>("");
   const [simXmlProducts, setSimXmlProducts] = useState<string>(
@@ -574,6 +575,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
                   className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-xs uppercase font-black tracking-wider transition-all ${dashboardTab === 'settings' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
                 >
                   <span className="flex items-center gap-2"><Settings size={16} /> Sicurezza &amp; Password</span>
+                </button>
+                <button 
+                  onClick={() => setDashboardTab("supabase")}
+                  className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-xs uppercase font-black tracking-wider transition-all ${dashboardTab === 'supabase' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                >
+                  <span className="flex items-center gap-2"><Database size={16} /> Diagnostica Supabase</span>
+                  <span className="bg-blue-50 text-[9px] font-extrabold text-blue-700 uppercase px-1.5 py-0.5 rounded border border-blue-200 tracking-wider font-sans shrink-0">Live DB</span>
                 </button>
                 <div className="h-px bg-slate-150 my-2"></div>
                 <button 
@@ -1633,6 +1641,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
                       </div>
                     </div>
                   </div>
+                )}
+
+                {dashboardTab === "supabase" && (
+                  <SupabaseDiagnosticPage />
                 )}
 
               </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, ShoppingCart, Info, Check, X, ChevronRight, FileUp, ArrowUpDown, Tag, Printer, Layers, Grid, List as ListIcon, Trash2 } from 'lucide-react';
+import { Search, Filter, ShoppingCart, Info, Check, X, ChevronRight, FileUp, ArrowUpDown, Tag, Printer, Layers, Grid, List as ListIcon, Trash2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useCart } from './CartContext.tsx';
 import { Product } from './types.ts';
@@ -195,6 +195,19 @@ export const Catalog = ({ initialSearch = "", initialCategory = "", onNavigate }
                 products.map((p) => (
                   <ProductCard key={p.id} product={p} onNavigate={onNavigate} />
                 ))
+              ) : (!filters.category && !filters.brand && !filters.search && !filters.minPrice && !filters.maxPrice) ? (
+                <div className="col-span-full p-8 bg-red-50 border-2 border-dashed border-red-200 rounded-3xl text-center">
+                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <AlertTriangle size={32} className="text-red-600" />
+                  </div>
+                  <h3 className="text-xl font-black text-red-900 uppercase tracking-tight mb-2">Errore di Connessione o Database Vuoto</h3>
+                  <p className="text-red-700 font-medium max-w-xl mx-auto mb-6">
+                    Gentile Utente, la tabella <code className="bg-red-100 px-1.5 py-0.5 rounded font-mono text-red-800 font-black">products</code> sul tuo database Supabase risulta attualmente vuota o non raggiungibile.
+                  </p>
+                  <p className="text-slate-600 text-sm max-w-lg mx-auto mb-8 font-medium">
+                    Questo sito è completamente collegato a Supabase in tempo reale. Per popolare la tabella d'acquisto, utilizza la casella "Sincronizzazione Catalogo" che trovi qui sotto per incollare e importare il CSV del listino ufficiale!
+                  </p>
+                </div>
               ) : (
                 <div className="col-span-full py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200 text-center">
                   <Search size={48} className="mx-auto text-slate-300 mb-4" />

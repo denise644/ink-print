@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { fetchSupabaseProducts, isSupabaseConfigured, getSupabaseConfigInfo, supabase } from '../lib/supabase';
 import { Product } from '../types';
-import { motion } from 'motion/react';
+import { useCart } from '../CartContext.tsx';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Database, 
   Copy, 
-  CheckCircle2, 
   AlertCircle, 
   RefreshCw, 
   ArrowRight, 
   Check, 
   ShoppingBag,
-  ExternalLink
+  ShoppingCart
 } from 'lucide-react';
 
 interface SupabaseProductsSectionProps {
@@ -25,6 +25,9 @@ export const SupabaseProductsSection: React.FC<SupabaseProductsSectionProps> = (
   const [sqlCopied, setSqlCopied] = useState<boolean>(false);
   const [isInserting, setIsInserting] = useState<boolean>(false);
   const [configured, setConfigured] = useState<boolean>(isSupabaseConfigured());
+  const [lastAddedId, setLastAddedId] = useState<string | null>(null);
+  
+  const { addToCart } = useCart();
   const configInfo = getSupabaseConfigInfo();
 
   const loadProducts = async () => {
@@ -49,9 +52,18 @@ export const SupabaseProductsSection: React.FC<SupabaseProductsSectionProps> = (
     loadProducts();
   }, []);
 
+  const handleAddToCart = (product: Product, e: React.MouseEvent) => {
+    e.stopPropagation();
+    addToCart(product);
+    setLastAddedId(product.id);
+    setTimeout(() => {
+      setLastAddedId(null);
+    }, 2000);
+  };
+
   const handleCopySql = () => {
-    const sqlText = `-- 1. Crea la tabella "prodotti" nel SQL Editor di Supabase
-CREATE TABLE prodotti (
+    const sqlText = `-- 1. Crea la tabella "products" nel SQL Editor di Supabase
+CREATE TABLE products (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   sku VARCHAR(255) UNIQUE NOT NULL,
   name VARCHAR(255) NOT NULL,
@@ -65,17 +77,16 @@ CREATE TABLE prodotti (
 );
 
 -- 2. Inserisci record di esempio per testare l'e-commerce
-INSERT INTO prodotti (sku, name, category, brand, price, availability, compatibility, description, image) VALUES 
-('TN-2420-BK', 'Toner Compatibile TN-2420 Alta Capacità', 'Toner Compatibili', 'Brother', 14.90, true, ARRAY['Brother HL-L2310D', 'Brother MFC-L2710DN'], 'Toner nero professionale con resa garantita di 3000 pagine al 5% di copertura.', 'https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?q=80&w=400'),
-('HP-305XL-COL', 'Cartuccia Originale HP 305XL Tricolore', 'Cartucce Originali', 'HP', 24.50, true, ARRAY['HP DeskJet 2710', 'HP ENVY 6020'], 'Cartuccia tricolore originale ad alta capacità per stampe nitide e brillanti.', 'https://images.unsplash.com/photo-1589311005364-90497fba9ad1?q=80&w=400'),
-('CAN-054H-MA', 'Toner Compatibile 054H Magenta XL', 'Toner Compatibili', 'Canon', 18.90, true, ARRAY['Canon LBP621Cw', 'Canon MF641Cw'], 'Toner magenta ad altissimo rendimento per colori brillanti e costanti nel tempo.', 'https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?q=80&w=400');`;
+INSERT INTO products (sku, name, category, brand, price, availability, compatibility, description, image) VALUES 
+('TN-2420-BK', 'Toner Compatibile TN-2420 Alta Capacità', 'Toner Compatibili', 'Brother', 14.90, true, ARRAY['Brother HL-L2310D', 'Brother MFC-L2710DN'], 'Toner nero professionale con resa garantita di 3000 pagine al 5% di copertura.', '/src/assets/images/toner_compat_bk_premium_1779958984462.png'),
+('HP-305XL-COL', 'Cartuccia Originale HP 305XL Tricolore', 'Cartucce Originali', 'HP', 24.50, true, ARRAY['HP DeskJet 2710', 'HP ENVY 6020'], 'Cartuccia tricolore originale ad alta capacità per stampe nitide e brillanti.', '/src/assets/images/inkjet_orig_template_2_1779958733126.png'),
+('CAN-054H-MA', 'Toner Compatibile 054H Magenta XL', 'Toner Compatibili', 'Canon', 18.90, true, ARRAY['Canon LBP621Cw', 'Canon MF641Cw'], 'Toner magenta ad altissimo rendimento per colori brillanti e costanti nel tempo.', '/src/assets/images/toner_compat_cmy_premium_1779959002014.png');`;
 
     navigator.clipboard.writeText(sqlText);
     setSqlCopied(true);
     setTimeout(() => setSqlCopied(false), 3000);
   };
 
-  // Quick helper to seed demo data directly if table exists but is empty
   const handleInsertSeedData = async () => {
     if (!supabase) return;
     setIsInserting(true);
@@ -91,7 +102,7 @@ INSERT INTO prodotti (sku, name, category, brand, price, availability, compatibi
           availability: true,
           compatibility: ['Brother HL-L2310D', 'Brother MFC-L2710DN'],
           description: 'Toner nero professionale con resa garantita di 3000 pagine al 5% di copertura.',
-          image: 'https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?q=80&w=400'
+          image: '/src/assets/images/toner_compat_bk_premium_1779958984462.png'
         },
         {
           sku: 'HP-305XL-COL',
@@ -102,7 +113,7 @@ INSERT INTO prodotti (sku, name, category, brand, price, availability, compatibi
           availability: true,
           compatibility: ['HP DeskJet 2710', 'HP ENVY 6020'],
           description: 'Cartuccia tricolore originale ad alta capacità per stampe nitide e brillanti.',
-          image: 'https://images.unsplash.com/photo-1589311005364-90497fba9ad1?q=80&w=400'
+          image: '/src/assets/images/inkjet_orig_template_2_1779958733126.png'
         },
         {
           sku: 'CAN-054H-MA',
@@ -113,12 +124,12 @@ INSERT INTO prodotti (sku, name, category, brand, price, availability, compatibi
           availability: true,
           compatibility: ['Canon LBP621Cw', 'Canon MF641Cw'],
           description: 'Toner magenta ad altissimo rendimento per colori brillanti e costanti nel tempo.',
-          image: 'https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?q=80&w=400'
+          image: '/src/assets/images/toner_compat_cmy_premium_1779959002014.png'
         }
       ];
 
       const { error: seedError } = await supabase
-        .from('prodotti')
+        .from('products')
         .insert(demoRows);
 
       if (seedError) throw seedError;
@@ -127,7 +138,7 @@ INSERT INTO prodotti (sku, name, category, brand, price, availability, compatibi
       loadProducts();
     } catch (err: any) {
       console.error(err);
-      setError("Impossibile caricare i prodotti demo: " + (err.message || "Verifica di aver creato la tabella 'prodotti' nel SQL Editor di Supabase."));
+      setError("Impossibile caricare i prodotti demo: " + (err.message || "Verifica di aver creato la tabella 'products' nel SQL Editor di Supabase."));
     } finally {
       setIsInserting(false);
     }
@@ -142,7 +153,7 @@ INSERT INTO prodotti (sku, name, category, brand, price, availability, compatibi
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-sm">
-                <Database size={11} className="text-blue-600" /> Supabase Integration
+                <Database size={11} className="text-blue-600" /> Supabase Realtime DB
               </span>
               
               {configured ? (
@@ -157,10 +168,10 @@ INSERT INTO prodotti (sku, name, category, brand, price, availability, compatibi
             </div>
             
             <h2 className="text-4xl font-black text-slate-900 tracking-tight uppercase">
-              Prodotti da Supabase
+              Lista Prodotti Supabase
             </h2>
             <p className="text-xs text-slate-500 font-bold max-w-2xl leading-relaxed">
-              In questa sezione i dati vengono letti direttamente e in tempo reale dalla tabella <code className="text-blue-600 bg-blue-50 px-1 py-0.5 rounded font-mono">prodotti</code> del database Supabase PostgreSQL.
+              Dati caricati live e gestiti in cloud tramite la tabella SQL <code className="text-blue-600 bg-blue-50 px-1 py-0.5 rounded font-mono">products</code> di Supabase.
             </p>
           </div>
 
@@ -176,7 +187,7 @@ INSERT INTO prodotti (sku, name, category, brand, price, availability, compatibi
           </div>
         </div>
 
-        {/* Diagnostic Panel if not configured or empty */}
+        {/* Diagnostic Panel if not configured or empty or throwing errors */}
         <div className="grid grid-cols-1 gap-8 mb-8">
           {(!configured || error || (products.length === 0 && !loading)) && (
             <div className="bg-white border border-slate-250 rounded-[2rem] p-6 md:p-8 shadow-sm space-y-6">
@@ -190,14 +201,14 @@ INSERT INTO prodotti (sku, name, category, brand, price, availability, compatibi
                       ? "Variabili di Ambiente Supabase non Rilevate" 
                       : error 
                         ? "Errore di Connessione o Schema" 
-                        : "Nessun Prodotto nella Tabella 'prodotti'"}
+                        : "Nessun Prodotto nella Tabella 'products'"}
                   </h4>
                   <p className="text-xs leading-relaxed text-slate-500 font-semibold">
                     {!configured 
                       ? "Fornisci NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY nelle impostazioni del tuo hosting (Vercel o .env) per attivare la connessione Cloud."
                       : error 
                         ? `Errore dettagliato: ${error}`
-                        : "La connessione a Supabase ha avuto successo, ma la tabella 'prodotti' è attualmente vuota oppure non è stata ancora popolata."}
+                        : "La connessione a Supabase ha avuto successo, ma la tabella 'products' è attualmente vuota oppure non è stata ancora creata o popolata."}
                   </p>
                 </div>
               </div>
@@ -205,8 +216,8 @@ INSERT INTO prodotti (sku, name, category, brand, price, availability, compatibi
               {/* Masked Connection details */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
                 <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-200 space-y-1 text-left">
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block font-sans">Tabella ricercata</span>
-                  <strong className="text-slate-800 font-black">prodotti</strong>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block font-sans">Tabella cercata</span>
+                  <strong className="text-slate-800 font-black">products</strong>
                 </div>
                 <div className="bg-slate-50/70 p-3.5 rounded-xl border border-slate-200 space-y-1 text-left">
                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block font-sans">ENDPOINT URL</span>
@@ -241,7 +252,7 @@ INSERT INTO prodotti (sku, name, category, brand, price, availability, compatibi
 
                 <div className="relative">
                   <pre className="text-[10px] font-mono p-4 rounded-2xl bg-slate-950 text-slate-200 overflow-x-auto whitespace-pre leading-relaxed text-left max-h-[190px]">
-                    {`CREATE TABLE prodotti (
+                    {`CREATE TABLE products (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   sku VARCHAR(255) UNIQUE NOT NULL,
   name VARCHAR(255) NOT NULL,
@@ -261,7 +272,7 @@ INSERT INTO prodotti (sku, name, category, brand, price, availability, compatibi
                   <div className="bg-blue-50/30 p-4 rounded-2xl border border-blue-100 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="text-left">
                       <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block">Inserimento Veloce</span>
-                      <p className="text-xs text-slate-500 font-semibold">Se hai già eseguito il codice SQL di sopra per creare la tabella prodotti, clicca qui per popolarla istantaneamente.</p>
+                      <p className="text-xs text-slate-500 font-semibold">Se hai già eseguito il codice SQL di sopra per creare la tabella products, clicca qui per popolarla istantaneamente.</p>
                     </div>
                     <button
                       onClick={handleInsertSeedData}
@@ -311,18 +322,21 @@ INSERT INTO prodotti (sku, name, category, brand, price, availability, compatibi
                 onClick={() => onNavigate('product-detail', product)}
               >
                 <div>
-                  {/* Image & Badge */}
+                  {/* Image & Badges */}
                   <div className="h-48 w-full bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center p-4 mb-6 group-hover:scale-102 transition-transform overflow-hidden relative">
                     <img 
                       src={product.image} 
                       alt={product.name} 
                       className="w-full h-full object-contain mix-blend-multiply" 
                       referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/src/assets/images/toner_compat_bk_premium_1779958984462.png';
+                      }}
                     />
-                    <span className="absolute top-3 left-3 bg-slate-900/90 text-white font-sans text-[8px] font-black uppercase px-2 py-0.5 rounded tracking-widest shadow">
+                    <span className="absolute top-3 left-3 bg-blue-600 text-white font-sans text-[8px] font-black uppercase px-2 py-0.5 rounded tracking-widest shadow">
                       Supabase DB
                     </span>
-                    <span className="absolute top-3 right-3 bg-blue-100/90 text-blue-800 font-extrabold text-[8px] uppercase px-1.5 py-0.5 rounded border border-blue-200 tracking-wider">
+                    <span className="absolute top-3 right-3 bg-slate-900/90 text-white font-extrabold text-[8px] uppercase px-1.5 py-0.5 rounded border border-slate-750 tracking-wider">
                       {product.brand}
                     </span>
                   </div>
@@ -334,9 +348,28 @@ INSERT INTO prodotti (sku, name, category, brand, price, availability, compatibi
                   </div>
 
                   {/* Title */}
-                  <h3 className="font-extrabold text-sm text-slate-900 group-hover:text-blue-600 transition-colors uppercase leading-snug mb-3">
+                  <h3 className="font-extrabold text-sm text-slate-900 group-hover:text-blue-600 transition-colors uppercase leading-snug mb-3 line-clamp-2">
                     {product.name}
                   </h3>
+
+                  {/* Compatibility Badges */}
+                  {product.compatibility && product.compatibility.length > 0 && (
+                    <div className="mb-4">
+                      <span className="text-[9px] font-black tracking-wider text-slate-400 uppercase block mb-1.5">Stampanti compatibili</span>
+                      <div className="flex flex-wrap gap-1">
+                        {product.compatibility.slice(0, 3).map((comp, idx) => (
+                          <span key={idx} className="bg-slate-150/70 text-slate-700 text-[9px] font-black uppercase tracking-tight px-2 py-0.5 rounded-md border border-slate-200">
+                            {comp}
+                          </span>
+                        ))}
+                        {product.compatibility.length > 3 && (
+                          <span className="text-[9px] text-slate-500 font-black self-center pl-1">
+                            +{product.compatibility.length - 3} altre
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Short Description */}
                   <p className="text-xs text-slate-500 font-medium leading-relaxed mb-4 line-clamp-2">
@@ -344,24 +377,47 @@ INSERT INTO prodotti (sku, name, category, brand, price, availability, compatibi
                   </p>
                 </div>
 
-                {/* Pricing and Call to Action */}
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between mt-auto">
-                  <div className="flex flex-col">
+                {/* Pricing and Action Buttons */}
+                <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mt-auto">
+                  <div className="flex flex-col text-left">
                     <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Prezzo</span>
                     <span className="text-lg font-black text-slate-900">
                       € {Number(product.price).toFixed(2)}
                     </span>
                   </div>
                   
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNavigate('product-detail', product);
-                    }}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-black text-[10px] uppercase tracking-widest py-2.5 px-4 rounded-xl shadow-lg shadow-blue-100 hover:shadow-blue-200 transition-all flex items-center gap-1 shrink-0"
-                  >
-                    Dettagli <ArrowRight size={12} />
-                  </button>
+                  <div className="flex gap-2.5">
+                    <button 
+                      onClick={(e) => handleAddToCart(product, e)}
+                      className={`font-black text-[10px] uppercase tracking-widest py-2.5 px-3.5 rounded-xl transition-all flex items-center justify-center gap-1.5 shrink-0 ${
+                        lastAddedId === product.id 
+                          ? "bg-emerald-600 text-white shadow-emerald-100"
+                          : "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-100 hover:shadow-blue-200"
+                      }`}
+                      title="Aggiungi direttamente al carrello"
+                    >
+                      {lastAddedId === product.id ? (
+                        <>
+                          <Check size={12} /> Unito!
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart size={12} /> Aggiungi
+                        </>
+                      )}
+                    </button>
+                    
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onNavigate('product-detail', product);
+                      }}
+                      className="p-2.5 border border-slate-200 hover:border-blue-300 text-slate-600 hover:text-blue-600 rounded-xl transition-all active:scale-95 flex items-center justify-center"
+                      title="Dettagli prodotto"
+                    >
+                      <ArrowRight size={13} />
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             ))}
