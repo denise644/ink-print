@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Download, FileText, Loader2, Search } from 'lucide-react';
+import { Download, FileText, Loader2, Search, AlertTriangle } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface Product {
@@ -16,15 +16,32 @@ interface Product {
 export const CatalogListino = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  useEffect(() => {
+  const fetchListino = () => {
+    setLoading(true);
+    setError(null);
     fetch('/api/products')
-      .then(res => res.json())
+      .then(async res => {
+        if (!res.ok) {
+          throw new Error(`Errore Server: ${res.status} ${res.statusText}`);
+        }
+        return res.json();
+      })
       .then(data => {
-        setProducts(data);
+        setProducts(data || []);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setError(err?.message || "Impossibile caricare il listino.");
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchListino();
   }, []);
 
   const groupedProducts = products.reduce((acc: any, p) => {
@@ -63,14 +80,28 @@ export const CatalogListino = () => {
         <div className="flex gap-4">
           <button 
             onClick={handleCopy}
-            className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg shadow-blue-100"
+            disabled={!!error}
+            className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg shadow-blue-100 disabled:opacity-50"
           >
             <Download size={20} /> Copia per Word
           </button>
         </div>
       </div>
 
-      <div className="bg-white border-2 border-slate-100 rounded-3xl p-8 md:p-12 shadow-2xl shadow-slate-100 mb-12">
+      {error ? (
+        <div className="bg-red-50 border-2 border-dashed border-red-200 rounded-3xl p-8 mb-12 text-center animate-fade-in">
+          <AlertTriangle className="text-red-500 mx-auto mb-4" size={48} />
+          <h3 className="text-xl font-black text-red-900 uppercase mb-2">Errore di Caricamento Listino</h3>
+          <p className="text-xs text-red-750 font-semibold mb-6 max-w-md mx-auto">{error}</p>
+          <button 
+            onClick={fetchListino} 
+            className="bg-red-900 hover:bg-red-950 text-white font-extrabold px-6 py-3 rounded-xl text-xs uppercase tracking-wider transition-all shadow active:scale-95"
+          >
+            Riconnetti e Riprova
+          </button>
+        </div>
+      ) : (
+        <div className="bg-white border-2 border-slate-100 rounded-3xl p-8 md:p-12 shadow-2xl shadow-slate-100 mb-12">
         <div id="listino-content" className="space-y-12 font-serif text-slate-900 whitespace-pre-wrap leading-relaxed">
           {filteredBrands.map(brand => (
             <div key={brand} className="space-y-8 border-b-2 border-slate-50 pb-12 last:border-0 last:pb-0">
@@ -102,6 +133,7 @@ export const CatalogListino = () => {
           ))}
         </div>
       </div>
+    )}
 
       <div className="bg-slate-900 text-white p-10 rounded-[3rem] text-center space-y-4">
         <h3 className="text-2xl font-bold">Hai bisogno di un formato diverso?</h3>

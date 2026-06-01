@@ -219,23 +219,54 @@ if (products.length < targetCount) {
     
     // Generate logical permutations
     const isOriginal = cat.includes('Originali');
+    const genName = `${cat.split(' ')[0]} ${isOriginal ? 'Originale' : 'Compatibile'} ${brand} Serie ${base.name.split(' ').pop() || 'Pro'} #${i}`;
     
     products.push({
       id: `gen-${i}`,
       sku: `${brand.slice(0, 2).toUpperCase()}-${base.sku.split('-')[0]}-${i}`,
-      name: `${cat.split(' ')[0]} ${isOriginal ? 'Originale' : 'Compatibile'} ${brand} Serie ${base.name.split(' ').pop() || 'Pro'} #${i}`,
+      name: genName,
       category: cat,
       brand: brand,
       price: Number((Math.random() * (45 - 5) + 5).toFixed(2)),
       availability: Math.random() > 0.1,
       compatibility: [`${brand} OfficeJet ${i % 100}`, `${brand} LaserJet Pro ${i % 200}`, `${brand} PIXMA ${i % 50}`],
       description: `Prodotto professionale di alta qualità per la tua stampante ${brand}. Garanzia Ink&Print By Denise.`,
-      image: cat.includes('Toner') 
-        ? `https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?q=80&w=400`
-        : `https://images.unsplash.com/photo-1589311005364-90497fba9ad1?q=80&w=400`
+      image: "" // Will be mapped to high-fidelity template below
     });
   }
 }
+
+// Map any empty/unsplash/placeholder product image to the beautiful local images for a consistent high-fidelity catalogue
+products = products.map(p => {
+  if (!p.image || p.image.includes('unsplash.com') || p.image.includes('placeholder.com')) {
+    const category = p.category;
+    const name = p.name;
+    const nameLower = name.toLowerCase();
+    const isCyan = nameLower.includes('cyan') || nameLower.includes('ciano') || nameLower.includes('azure') || nameLower.includes('azzurro') || nameLower.includes('-c') || nameLower.includes(' c ');
+    const isMagenta = nameLower.includes('magenta') || nameLower.includes('-m') || nameLower.includes(' m ');
+    const isYellow = nameLower.includes('yellow') || nameLower.includes('giallo') || nameLower.includes('-y') || nameLower.includes(' y ');
+    const isOriginal = category.toLowerCase().includes('original');
+
+    let productImg = '/src/assets/images/toner_compat_bk_premium_1779958984462.png';
+    if (category.toLowerCase().includes('inchiostr') || category.toLowerCase().includes('ink')) {
+      productImg = "/src/assets/images/inkjet_compat_generic_template_1779959041117.png";
+    } else if (isOriginal && (category.toLowerCase().includes('cartucc') || category.toLowerCase().includes('inkjet'))) {
+      productImg = "/src/assets/images/inkjet_orig_template_2_1779958733126.png";
+    } else if (category.toLowerCase().includes('cartucc')) {
+      productImg = "/src/assets/images/inkjet_compat_generic_template_1779959041117.png";
+    } else if (category.toLowerCase().includes('drum') || category.toLowerCase().includes('tambur') || category.toLowerCase().includes('gruppo')) {
+      productImg = "/src/assets/images/drum_unit_premium_template_1779959019359.png";
+    } else if (category.toLowerCase().includes('toner') || category.toLowerCase().includes('laser')) {
+      if (isCyan || isMagenta || isYellow) {
+        productImg = "/src/assets/images/toner_compat_cmy_premium_1779959002014.png";
+      } else {
+        productImg = "/src/assets/images/toner_compat_bk_premium_1779958984462.png";
+      }
+    }
+    return { ...p, image: productImg };
+  }
+  return p;
+});
 
 async function startServer() {
   const app = express();
@@ -296,13 +327,7 @@ async function startServer() {
   });
 
   app.get("/api/products", async (req, res) => {
-    let sourceProducts: Product[] = [];
-    if (serverSupabase) {
-      sourceProducts = await getSupabaseProducts();
-    }
-    if (!sourceProducts || sourceProducts.length === 0) {
-      sourceProducts = [...products];
-    }
+    const sourceProducts = [...products];
 
     let filtered = [...sourceProducts];
     const { category, brand, search, sort, minPrice, maxPrice } = req.query;
@@ -334,38 +359,19 @@ async function startServer() {
   });
 
   app.get("/api/categories", async (req, res) => {
-    let sourceProducts: Product[] = [];
-    if (serverSupabase) {
-      sourceProducts = await getSupabaseProducts();
-    }
-    if (!sourceProducts || sourceProducts.length === 0) {
-      sourceProducts = [...products];
-    }
+    const sourceProducts = [...products];
     const categories = Array.from(new Set(sourceProducts.map(p => p.category)));
     res.json(categories);
   });
 
   app.get("/api/brands", async (req, res) => {
-    let sourceProducts: Product[] = [];
-    if (serverSupabase) {
-      sourceProducts = await getSupabaseProducts();
-    }
-    if (!sourceProducts || sourceProducts.length === 0) {
-      sourceProducts = [...products];
-    }
+    const sourceProducts = [...products];
     const brands = Array.from(new Set(sourceProducts.map(p => p.brand)));
     res.json(brands);
   });
 
   app.get("/api/products-count", async (req, res) => {
-    let sourceProducts: Product[] = [];
-    if (serverSupabase) {
-      sourceProducts = await getSupabaseProducts();
-    }
-    if (!sourceProducts || sourceProducts.length === 0) {
-      sourceProducts = [...products];
-    }
-    res.json({ count: sourceProducts.length });
+    res.json({ count: products.length });
   });
 
   app.get("/api/supabase-diagnostic", async (req, res) => {
@@ -1278,6 +1284,8 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
+    // Serves /src/assets/images directly in production fallback for dynamic image mapping URLs
+    app.use('/src/assets/images', express.static(path.join(process.cwd(), 'src/assets/images')));
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));

@@ -18,9 +18,7 @@ export const Catalog = ({ initialSearch = "", initialCategory = "", onNavigate }
   });
   const [categories, setCategories] = useState<string[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
-  const [csvText, setCsvText] = useState("");
-  const [isImporting, setIsImporting] = useState(false);
-  const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const { addItem } = useCart();
 
   useEffect(() => {
@@ -29,6 +27,7 @@ export const Catalog = ({ initialSearch = "", initialCategory = "", onNavigate }
 
   const fetchData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const query = new URLSearchParams();
       if (filters.category) query.append('category', filters.category);
@@ -43,16 +42,28 @@ export const Catalog = ({ initialSearch = "", initialCategory = "", onNavigate }
         fetch('/api/categories'),
         fetch('/api/brands')
       ]);
+
+      if (!prodRes.ok) {
+        throw new Error(`Errore caricamento prodotti: ${prodRes.status} ${prodRes.statusText}`);
+      }
+      if (!catRes.ok) {
+        throw new Error(`Errore caricamento categorie: ${catRes.status} ${catRes.statusText}`);
+      }
+      if (!brandRes.ok) {
+        throw new Error(`Errore caricamento marche: ${brandRes.status} ${brandRes.statusText}`);
+      }
+
       const [prodData, catData, brandData] = await Promise.all([
         prodRes.json(),
         catRes.json(),
         brandRes.json()
       ]);
-      setProducts(prodData);
-      setCategories(catData);
-      setBrands(brandData);
-    } catch (e) {
+      setProducts(prodData || []);
+      setCategories(catData || []);
+      setBrands(brandData || []);
+    } catch (e: any) {
       console.error(e);
+      setError(e?.message || "Impossibile caricare il catalogo. Errore di comunicazione con il server.");
     } finally {
       setLoading(false);
     }
@@ -62,29 +73,6 @@ export const Catalog = ({ initialSearch = "", initialCategory = "", onNavigate }
     const timeout = setTimeout(fetchData, 300);
     return () => clearTimeout(timeout);
   }, [filters]);
-
-  const handleImport = async () => {
-    if (!csvText.trim()) return;
-    setIsImporting(true);
-    try {
-      const res = await fetch('/api/import-csv', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ csvData: csvText })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setImportStatus(`Importazione completata: ${data.count} prodotti aggiunti.`);
-        setCsvText("");
-        fetchData();
-        setTimeout(() => setImportStatus(null), 5000);
-      }
-    } catch (e) {
-      setImportStatus("Errore durante l'importazione.");
-    } finally {
-      setIsImporting(false);
-    }
-  };
 
   const clearFilters = () => {
     setFilters({ category: "", brand: "", search: "", sort: "relevance", minPrice: "", maxPrice: "" });
@@ -186,6 +174,24 @@ export const Catalog = ({ initialSearch = "", initialCategory = "", onNavigate }
 
           {/* Grid */}
           <main className="flex-1">
+            {error && (
+              <div className="p-6 bg-red-50 border border-red-200 rounded-3xl mb-8">
+                <div className="flex items-start gap-4">
+                  <AlertTriangle className="text-red-500 shrink-0 mt-0.5" size={24} />
+                  <div className="space-y-1">
+                    <h4 className="font-extrabold text-red-905 uppercase tracking-wide text-sm">Errore di Caricamento Catalogo</h4>
+                    <p className="text-xs text-red-700 font-semibold">{error}</p>
+                    <button 
+                      onClick={fetchData} 
+                      className="mt-2 text-xs font-black text-red-900 underline hover:text-red-955 uppercase tracking-widest block"
+                    >
+                      Riprova Caricamento
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {loading ? (
                 Array.from({ length: 6 }).map((_, i) => (
@@ -195,19 +201,6 @@ export const Catalog = ({ initialSearch = "", initialCategory = "", onNavigate }
                 products.map((p) => (
                   <ProductCard key={p.id} product={p} onNavigate={onNavigate} />
                 ))
-              ) : (!filters.category && !filters.brand && !filters.search && !filters.minPrice && !filters.maxPrice) ? (
-                <div className="col-span-full p-8 bg-red-50 border-2 border-dashed border-red-200 rounded-3xl text-center">
-                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <AlertTriangle size={32} className="text-red-600" />
-                  </div>
-                  <h3 className="text-xl font-black text-red-900 uppercase tracking-tight mb-2">Errore di Connessione o Database Vuoto</h3>
-                  <p className="text-red-700 font-medium max-w-xl mx-auto mb-6">
-                    Gentile Utente, la tabella <code className="bg-red-100 px-1.5 py-0.5 rounded font-mono text-red-800 font-black">products</code> sul tuo database Supabase risulta attualmente vuota o non raggiungibile.
-                  </p>
-                  <p className="text-slate-600 text-sm max-w-lg mx-auto mb-8 font-medium">
-                    Questo sito è completamente collegato a Supabase in tempo reale. Per popolare la tabella d'acquisto, utilizza la casella "Sincronizzazione Catalogo" che trovi qui sotto per incollare e importare il CSV del listino ufficiale!
-                  </p>
-                </div>
               ) : (
                 <div className="col-span-full py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200 text-center">
                   <Search size={48} className="mx-auto text-slate-300 mb-4" />
@@ -215,29 +208,6 @@ export const Catalog = ({ initialSearch = "", initialCategory = "", onNavigate }
                   <button onClick={clearFilters} className="text-blue-600 font-bold hover:underline">Resetta i filtri</button>
                 </div>
               )}
-            </div>
-
-            {/* CSV Import at bottom */}
-            <div className="mt-12 p-8 bg-white rounded-3xl border border-slate-200">
-               <h3 className="text-xl font-black text-slate-900 uppercase mb-4 flex items-center gap-2">
-                 <FileUp className="text-blue-600" /> Sincronizzazione Catalogo
-               </h3>
-               <p className="text-slate-500 text-sm mb-6">Caricamento massivo tramite CSV per aggiornare i 1536 prodotti del listino ufficiale.</p>
-               <textarea 
-                  className="w-full h-32 bg-slate-50 border border-slate-200 rounded-2xl p-4 font-mono text-[10px] focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none mb-4"
-                  placeholder="sku,name,category,brand,price,availability,compatibility,description,image"
-                  value={csvText}
-                  onChange={(e) => setCsvText(e.target.value)}
-                />
-                <button 
-                  onClick={handleImport}
-                  disabled={isImporting || !csvText.trim()}
-                  className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-slate-800 transition-all flex items-center gap-2"
-                >
-                  {isImporting ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}><FileUp size={18} /></motion.div> : <FileUp size={18} />}
-                  Sincronizza Catalogo CSV
-                </button>
-                {importStatus && <p className="mt-4 text-green-600 font-bold text-sm">{importStatus}</p>}
             </div>
           </main>
         </div>
