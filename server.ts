@@ -6,7 +6,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { parse } from "csv-parse/sync";
 import { GoogleGenAI } from "@google/genai";
-import { createClient } from "@supabase/supabase-js";
+// Supabase import removed - disconnected
 
 import productsData from "./src/data/products.json";
 
@@ -23,26 +23,10 @@ interface Product {
   image: string;
 }
 
-// Supabase server connection setup
-const serverSupabaseUrlRaw = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const serverSupabaseUrl = serverSupabaseUrlRaw.trim().replace(/\/rest\/v1\/?$/, "").replace(/\/+$/, "");
-const serverSupabaseAnonKey = (process.env.VITE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "").trim();
-
-const serverSupabase = serverSupabaseUrl && serverSupabaseAnonKey
-  ? createClient(serverSupabaseUrl, serverSupabaseAnonKey)
-  : null;
-
-// Log Supabase configuration status in console for debugging
-if (serverSupabase) {
-  console.log("Supabase backend client connected successfully utilizing Endpoint:", serverSupabaseUrl);
-} else {
-  console.warn("Supabase credentials missing on server. Falling back to mock database.");
-}
-
-// In-Memory cache for Supabase products to maintain snappy API response times and protect DB query limits
-let cachedSupabaseProducts: Product[] | null = null;
-let cacheTimestamp = 0;
-const CACHE_TTL_MS = 5000; // 5 seconds cache
+// Supabase disconnected completely
+const serverSupabase = null;
+const serverSupabaseUrl = "";
+const serverSupabaseAnonKey = "";
 
 function mapServerSupabaseToProducts(data: any[]): Product[] {
   return data.map((item: any) => {
@@ -165,39 +149,7 @@ async function withTimeout<T>(promise: PromiseLike<T> | any, timeoutMs: number):
 }
 
 async function getSupabaseProducts(): Promise<Product[]> {
-  if (!serverSupabase) return [];
-  const now = Date.now();
-  if (cachedSupabaseProducts && (now - cacheTimestamp < CACHE_TTL_MS)) {
-    return cachedSupabaseProducts;
-  }
-
-  try {
-    const queryPromise = serverSupabase
-      .from('products')
-      .select('*');
-    
-    const { data, error } = await withTimeout<any>(queryPromise, 2500);
-    
-    if (error) {
-      console.warn("products table error, fetching from lookup backup:", error.message);
-      const fallbackQueryPromise = serverSupabase
-        .from('prodotti')
-        .select('*');
-      const { data: fallbackData, error: fallbackError } = await withTimeout<any>(fallbackQueryPromise, 2500);
-      if (fallbackError) {
-        throw fallbackError;
-      }
-      cachedSupabaseProducts = mapServerSupabaseToProducts(fallbackData || []);
-      cacheTimestamp = Date.now();
-      return cachedSupabaseProducts;
-    }
-    cachedSupabaseProducts = mapServerSupabaseToProducts(data || []);
-    cacheTimestamp = Date.now();
-    return cachedSupabaseProducts || [];
-  } catch (err) {
-    console.error("Critical: Could not retrieve products from Supabase on backend:", err);
-    return [];
-  }
+  return [];
 }
 
 // Data loaded from processed document
@@ -374,74 +326,7 @@ async function startServer() {
     res.json({ count: products.length });
   });
 
-  app.get("/api/supabase-diagnostic", async (req, res) => {
-    const configured = !!(serverSupabaseUrl && serverSupabaseAnonKey);
-    const maskedKey = serverSupabaseAnonKey
-      ? `${serverSupabaseAnonKey.slice(0, 8)}...${serverSupabaseAnonKey.slice(-8)}`
-      : "Non Configurato";
-    
-    if (!configured) {
-      return res.json({
-        success: false,
-        configured: false,
-        url: serverSupabaseUrl || "Mancante",
-        maskedKey,
-        error: "Il client Supabase sul server non è configurato. Assicurati che le variabili di ambiente VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY o NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY siano impostate.",
-        count: 0
-      });
-    }
 
-    try {
-      const queryPromise = serverSupabase!.from('products').select('*', { count: 'exact', head: true });
-      const { count, error } = await withTimeout<any>(queryPromise, 6000);
-
-      if (error) {
-        // Fallback lookup table
-        const fallbackPromise = serverSupabase!.from('prodotti').select('*', { count: 'exact', head: true });
-        const { count: fallbackCount, error: fallbackError } = await withTimeout<any>(fallbackPromise, 6000);
-        
-        if (fallbackError) {
-          return res.json({
-            success: false,
-            configured: true,
-            url: serverSupabaseUrl,
-            maskedKey,
-            error: `Impossibile leggere la tabella 'products' (${error.message}) E anche il tentativo sulla tabella 'prodotti' è fallito (${fallbackError.message}).`,
-            count: 0
-          });
-        }
-        
-        return res.json({
-          success: true,
-          configured: true,
-          url: serverSupabaseUrl,
-          table: "prodotti",
-          maskedKey,
-          count: fallbackCount || 0,
-          message: "Connessione riuscita alla tabella di fallback 'prodotti'."
-        });
-      }
-
-      return res.json({
-        success: true,
-        configured: true,
-        url: serverSupabaseUrl,
-        table: "products",
-        maskedKey,
-        count: count || 0,
-        message: "Connessione riuscita alla tabella principale 'products'."
-      });
-    } catch (err: any) {
-      return res.json({
-        success: false,
-        configured: true,
-        url: serverSupabaseUrl,
-        maskedKey,
-        error: err?.message || String(err),
-        count: 0
-      });
-    }
-  });
 
   const imageCache = new Map<string, string>();
 
@@ -608,63 +493,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/import-csv", (req, res) => {
-    try {
-      const { csvData } = req.body;
-      if (!csvData) return res.status(400).json({ error: "No CSV data provided" });
 
-      const records = parse(csvData, {
-        columns: true,
-        skip_empty_lines: true
-      });
-
-      const newProducts = records.map((r: any, idx: number) => ({
-        id: (products.length + idx + 1).toString(),
-        sku: r.sku || `SKU-${Math.random().toString(36).substr(2, 9)}`,
-        name: r.name || "Unnamed Product",
-        category: r.category || "Uncategorized",
-        brand: r.brand || "Generic",
-        price: Number(r.price) || 0,
-        availability: r.availability === 'true' || r.availability === '1',
-        compatibility: r.compatibility ? r.compatibility.split(';').map((s: string) => s.trim()) : [],
-        description: r.description || "",
-        image: r.image || "https://images.unsplash.com/photo-1589118949245-7d38baf380d6?q=80&w=400&h=300&fit=crop"
-      }));
-
-      products = [...products, ...newProducts];
-
-      if (serverSupabase) {
-        (async () => {
-          try {
-            console.log("Upserting new products into Supabase products table...");
-            const dbPayloads = newProducts.map((p: any) => ({
-              id: parseInt(p.id) || undefined,
-              name: p.name,
-              price: p.price,
-              compatibility: p.compatibility
-            }));
-
-            const { error: batchErr } = await serverSupabase
-              .from("products")
-              .upsert(dbPayloads, { onConflict: "id" });
-            
-            if (batchErr) {
-              console.error("Supabase import-csv batch error:", batchErr.message);
-            } else {
-              console.log("Imported products successfully upserted to Supabase!");
-            }
-          } catch (batchCatch) {
-            console.error("Supabase import-csv batch crash:", batchCatch);
-          }
-        })();
-      }
-
-      res.json({ success: true, count: newProducts.length });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: "Failed to parse CSV" });
-    }
-  });
 
   // Orders In-Memory Database
   const orders: any[] = [];
@@ -912,46 +741,7 @@ async function startServer() {
       // Add to front of orders database
       orders.unshift(newOrder);
 
-      // Save order and customer to Supabase if connected
-      if (serverSupabase) {
-        (async () => {
-          try {
-            console.log("Saving customer to Supabase customers table...");
-            const fullAddress = `${customer.address || ""}, ${customer.city || ""} (${customer.province || ""}) - ${customer.zip || ""}`;
-            
-            const { error: custErr } = await serverSupabase
-              .from("customers")
-              .upsert({
-                email: customer.email,
-                phone: customer.phone || "",
-                address: fullAddress
-              }, { onConflict: "email" });
-
-            if (custErr) {
-              console.error("Supabase error inserting customer:", custErr.message);
-            } else {
-              console.log("Customer saved to Supabase successfully.");
-            }
-
-            console.log("Saving order to Supabase orders table...");
-            const { error: ordErr } = await serverSupabase
-              .from("orders")
-              .insert({
-                status: status,
-                customer_name: customer.name || "",
-                customer_email: customer.email || ""
-              });
-
-            if (ordErr) {
-              console.error("Supabase error inserting order:", ordErr.message);
-            } else {
-              console.log("Order saved to Supabase successfully.");
-            }
-          } catch (dbErr: any) {
-            console.error("Critical: Failed to save to Supabase from checkout handler:", dbErr.message);
-          }
-        })();
-      }
+      // Save order and customer to local memory database and firebase (handled in frontend)
 
       // --- Automate Email Notification Actions ---
       // 1. Order Confirmation (Client)
