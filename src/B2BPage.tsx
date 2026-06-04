@@ -14,7 +14,8 @@ import { db } from './lib/firebase';
 import { handleFirestoreError, OperationType } from './lib/firebaseUtils';
 
 export const B2BPage: React.FC<B2BPageProps> = ({ onBack }) => {
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -58,20 +59,23 @@ export const B2BPage: React.FC<B2BPageProps> = ({ onBack }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email || !products) return;
+    if (!firstName || !lastName || !email || !products) return;
 
     setIsSubmitting(true);
     const requestId = `B2B-${Math.floor(100000 + Math.random() * 900000)}`;
     const path = `b2b_requests/${requestId}`;
+    const name = `${firstName} ${lastName}`;
     
     try {
       const requestData = {
         id: requestId,
         name,
-        company,
+        firstName,
+        lastName,
+        company: company || "N/A",
         email,
-        phone,
-        vatId,
+        phone: phone || "N/A",
+        vatId: vatId || "N/A",
         qty,
         products,
         message,
@@ -199,16 +203,29 @@ export const B2BPage: React.FC<B2BPageProps> = ({ onBack }) => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs font-bold">
-                  {/* Nome e Cognome */}
+                  {/* Nome */}
                   <div className="space-y-1.5">
-                    <label className="text-slate-500 uppercase block pl-1">Nome e Cognome *</label>
+                    <label className="text-slate-500 uppercase block pl-1">Nome *</label>
                     <input 
                       type="text"
                       required
-                      placeholder="es. Marco Rossi"
+                      placeholder="es. Marco"
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 text-slate-900 font-semibold outline-none transition-all"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Cognome */}
+                  <div className="space-y-1.5">
+                    <label className="text-slate-500 uppercase block pl-1">Cognome *</label>
+                    <input 
+                      type="text"
+                      required
+                      placeholder="es. Rossi"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 text-slate-900 font-semibold outline-none transition-all"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
                     />
                   </div>
 
@@ -403,7 +420,7 @@ export const B2BPage: React.FC<B2BPageProps> = ({ onBack }) => {
 
               <div className="pt-4 flex flex-col sm:flex-row justify-center gap-4">
                 <button 
-                  onClick={() => { setSubmittedData(null); setName(""); setProducts(""); }}
+                  onClick={() => { setSubmittedData(null); setFirstName(""); setLastName(""); setProducts(""); }}
                   className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase px-8 py-3.5 rounded-xl tracking-wider transition-all"
                 >
                   Richiedi un Altro Preventivo

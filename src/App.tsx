@@ -9,7 +9,6 @@ import { Hero, ComeFunziona, ChiSiamo, PreventiviAziendali, GaranziaProdotti } f
 import { AIChat } from './AIChat.tsx';
 import { Catalog } from './Catalog.tsx';
 import { CatalogListino } from './CatalogListino.tsx';
-import { TrackOrder } from './TrackOrder.tsx';
 import { DeliveryNote } from './DeliveryNote.tsx';
 import { CompatibilityPage } from './CompatibilityPage.tsx';
 import { SecurityPage } from './SecurityPage.tsx';
@@ -71,7 +70,15 @@ const HomePage = ({ onNavigate, productCount }: { onNavigate: (page: string, dat
                 >
                   <div className={`w-16 h-16 ${cat.image ? 'p-1.5 bg-white border border-slate-100' : cat.color} rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-sm overflow-hidden`}>
                     {cat.image ? (
-                      <img src={cat.image} alt={cat.title} className="w-full h-full object-contain mix-blend-multiply" referrerPolicy="no-referrer" />
+                      <img 
+                        src={cat.image} 
+                        alt={cat.title} 
+                        className="w-full h-full object-contain mix-blend-multiply" 
+                        referrerPolicy="no-referrer" 
+                        onError={(e) => {
+                          e.currentTarget.src = "https://www.framatek.com/2270-thickbox_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg";
+                        }}
+                      />
                     ) : (
                       IconComp && <IconComp size={32} />
                     )}
@@ -126,13 +133,26 @@ export default function App() {
 
   useEffect(() => {
     fetch('/api/products-count')
-      .then(res => res.json())
+      .then(async res => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! Status: ${res.status}`);
+        }
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          const text = await res.text();
+          throw new Error(`Expected JSON but got: ${text.slice(0, 100)}`);
+        }
+        return res.json();
+      })
       .then(data => {
         if (data && typeof data.count === 'number') {
           setProductCount(data.count);
         }
       })
-      .catch(err => console.error("Error loading products count:", err));
+      .catch(err => {
+        console.warn("Could not load products count from server (e.g. Rate exceeded or offline), using offline fallback of 1536 products:", err.message || err);
+        setProductCount(1536);
+      });
   }, []);
 
   useEffect(() => {
@@ -233,8 +253,7 @@ export default function App() {
           {currentPage === 'home' && <HomePage onNavigate={handleNavigate} productCount={productCount} />}
           {currentPage === 'catalog' && <Catalog initialSearch={globalSearch} initialCategory={activeCategory} onNavigate={handleNavigate} />}
           {currentPage === 'listino' && <CatalogListino />}
-          {currentPage === 'ordini' && <TrackOrder onNavigate={handleNavigate} />}
-          {currentPage === 'bolla' && <DeliveryNote order={activeOrderData} onBack={() => handleNavigate('ordini')} />}
+          {currentPage === 'bolla' && <DeliveryNote order={activeOrderData} onBack={() => handleNavigate('gestione-logistica')} />}
           {currentPage === 'compatibilita' && <CompatibilityPage onBack={() => handleNavigate('home')} />}
           {currentPage === 'sicurezza' && <SecurityPage onBack={() => handleNavigate('home')} />}
           {currentPage === 'product-detail' && selectedProduct && <ProductDetailPage product={selectedProduct} onBack={() => handleNavigate('catalog')} onNavigate={handleNavigate} />}
@@ -247,7 +266,7 @@ export default function App() {
           {currentPage === 'cookie-policy' && <CookiePolicy onBack={() => handleNavigate('home')} />}
           {currentPage === 'termini-condizioni' && <TerminiCondizioni onBack={() => handleNavigate('home')} />}
           {currentPage === 'contatti' && <Contatti onBack={() => handleNavigate('home')} onNavigate={handleNavigate} />}
-          {!['home', 'catalog', 'listino', 'ordini', 'bolla', 'compatibilita', 'sicurezza', 'product-detail', 'carrello', 'gestione-logistica', 'b2b', 'lavora-con-noi', 'pagamenti', 'privacy-policy', 'cookie-policy', 'termini-condizioni', 'contatti'].includes(currentPage) && (
+          {!['home', 'catalog', 'listino', 'bolla', 'compatibilita', 'sicurezza', 'product-detail', 'carrello', 'gestione-logistica', 'b2b', 'lavora-con-noi', 'pagamenti', 'privacy-policy', 'cookie-policy', 'termini-condizioni', 'contatti'].includes(currentPage) && (
             <div className="max-w-7xl mx-auto px-4 py-32 text-center">
               <h2 className="text-4xl font-bold mb-4 uppercase tracking-tight">{currentPage.replace('-', ' ')}</h2>
               <p className="text-slate-500 mb-8 max-w-lg mx-auto">Questa sezione è in fase di allestimento. Torna presto per scoprire tutte le novità di Ink&Print By Denise.</p>

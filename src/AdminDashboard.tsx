@@ -119,6 +119,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
     `<?xml version="1.0" encoding="utf-8"?>\n<EasyfattProducts Version="2">\n  <Products>\n    <Product>\n      <Code>tn2420-bk</Code>\n      <Qty>95</Qty>\n      <Price1>12.90</Price1>\n    </Product>\n  </Products>\n</EasyfattProducts>`
   );
   const [loading, setLoading] = useState(true);
+  
+  // PrestaShop states
+  const [psActive, setPsActive] = useState(true);
+  const [psUrl, setPsUrl] = useState("https://esempio-prestashop.it/api");
+  const [psApiKey, setPsApiKey] = useState("PS_89ab32cdef101234567890abcdef1231");
+  const [psLastProducts, setPsLastProducts] = useState("Nessuna sincronizzazione");
+  const [psLastOrders, setPsLastOrders] = useState("Nessuna sincronizzazione");
+  const [isPsSyncing, setIsPsSyncing] = useState(false);
+  const [psLogs, setPsLogs] = useState<string[]>([
+    "[04/06/2026 09:10] Nodo PrestaShop inizializzato",
+    "[04/06/2026 09:30] Allineati 12 toner compatibili con codice SKU"
+  ]);
+
+  // CSV Catalog import states
+  const [csvFeedback, setCsvFeedback] = useState("");
+  const [isCsvUploading, setIsCsvUploading] = useState(false);
+  const [successCsvCount, setSuccessCsvCount] = useState<number | null>(null);
+  const [syncSubTab, setSyncSubTab] = useState<"danea" | "prestashop" | "csv">("danea");
+
+  // Pre-deploy physical audit checklist states
+  const [checkedHosting, setCheckedHosting] = useState(false);
+  const [checkedPrestashop, setCheckedPrestashop] = useState(false);
+  const [checkedEasyfatt, setCheckedEasyfatt] = useState(false);
+  const [checkedEasyPrestaModule, setCheckedEasyPrestaModule] = useState(false);
+
+
   const [searchTerm, setSearchTerm] = useState("");
   const [orderFilter, setOrderFilter] = useState<string>("all");
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
@@ -155,6 +181,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
   const [selectedQuote, setSelectedQuote] = useState<any>(null);
   const [quoteReplyMsg, setQuoteReplyMsg] = useState("");
   const [quoteStatusVal, setQuoteStatusVal] = useState("");
+  
+  // Interactive quote editor state variables
+  const [quoteItems, setQuoteItems] = useState<{ id: string; name: string; quantity: number; price: number }[]>([]);
+  const [quoteNumber, setQuoteNumber] = useState("22026-001");
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [showDocType, setShowDocType] = useState<"preventivo" | "ddt" | "conferma_ordine" | null>(null);
+  const [isEmailSending, setIsEmailSending] = useState(false);
+  const [emailSendResult, setEmailSendResult] = useState("");
+
+  // Editable customer states for active B2B quote
+  const [qName, setQName] = useState("");
+  const [qCompany, setQCompany] = useState("");
+  const [qEmail, setQEmail] = useState("");
+  const [qPhone, setQPhone] = useState("");
+  const [qVatId, setQVatId] = useState("");
 
   // Order update states
   const [statusVal, setStatusVal] = useState("");
@@ -230,12 +271,148 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
         setJobApplications(data.jobApplications || []);
         setRefunds(data.refunds || []);
       }
+
+      // Fetch PrestaShop configuration
+      const psRes = await fetch("/api/prestashop/config");
+      if (psRes.ok) {
+        const psData = await psRes.json();
+        setPsActive(psData.active);
+        setPsUrl(psData.webserviceUrl);
+        setPsApiKey(psData.apiKey);
+        setPsLastProducts(psData.lastSyncProducts);
+        setPsLastOrders(psData.lastSyncOrders);
+      }
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleSavePrestaShopConfig = async () => {
+    try {
+      const res = await fetch("/api/prestashop/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          active: psActive,
+          webserviceUrl: psUrl,
+          apiKey: psApiKey
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPsLogs(prev => [
+          `[${new Date().toLocaleString('it-IT')}] Configurazione PrestaShop aggiornata e convalidata con successo!`,
+          ...prev
+        ]);
+        alert(data.message || "Configurazione salvata con successo!");
+      } else {
+        alert("Errore nel salvataggio della configurazione.");
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert("Errore: " + e.message);
+    }
+  };
+
+  const handleSyncPrestaShopProducts = async () => {
+    setIsPsSyncing(true);
+    try {
+      const res = await fetch("/api/prestashop/sync-products", { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        setPsLastProducts(data.timestamp);
+        setPsLogs(prev => [
+          `[${data.timestamp}] Sincronizzazione Catalogo: ${data.message}`,
+          ...prev
+        ]);
+        alert(data.message);
+      } else {
+        alert("Errore sincronizzazione catalogo.");
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert("Errore: " + e.message);
+    } finally {
+      setIsPsSyncing(false);
+    }
+  };
+
+  const handleSyncPrestaShopOrders = async () => {
+    setIsPsSyncing(true);
+    try {
+      const res = await fetch("/api/prestashop/sync-orders", { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        setPsLastOrders(data.timestamp);
+        setPsLogs(prev => [
+          `[${data.timestamp}] Sincronizzazione Ordini: ${data.message}`,
+          ...prev
+        ]);
+        alert(data.message);
+      } else {
+        alert("Errore sincronizzazione ordini.");
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert("Errore: " + e.message);
+    } finally {
+      setIsPsSyncing(false);
+    }
+  };
+
+  const handleCsvFileChanged = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsCsvUploading(true);
+    setCsvFeedback("");
+    setSuccessCsvCount(null);
+    
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      if (!text) {
+        setCsvFeedback("× Impossibile leggere il file CSV.");
+        setIsCsvUploading(false);
+        return;
+      }
+      
+      try {
+        const res = await fetch("/api/products/import-csv", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ csvText: text })
+        });
+        
+        if (res.ok) {
+          const d = await res.json();
+          if (d.success) {
+            setSuccessCsvCount(d.updatedCount);
+            setCsvFeedback(`✓ Sincronizzazione Catalogo completata! Aggiornati correttamente ${d.updatedCount} prodotti.`);
+            setPsLogs(prev => [
+              `[${new Date().toLocaleString('it-IT')}] Importazione CSV: Caricati ed aggiornati ${d.updatedCount} prodotti.`,
+              ...prev
+            ]);
+          } else {
+            setCsvFeedback(`× Errore nell'elaborazione: ${d.error || "Formato non idoneo"}`);
+          }
+        } else {
+          const errorData = await res.json();
+          setCsvFeedback(`× Errore server: ${errorData.error || "Impossibile allineare i dati"}`);
+        }
+      } catch (error: any) {
+        setCsvFeedback(`× Errore connessione: ${error.message}`);
+      } finally {
+        setIsCsvUploading(false);
+      }
+    };
+    
+    reader.readAsText(file);
+  };
+
+
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -301,33 +478,213 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
     }
   };
 
-  // Update business quotes state update
-  const handleUpdateQuote = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Full update for customer details, custom items, and status of active B2B quote
+  const handleUpdateQuote = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!selectedQuote) return;
+    
     try {
       const quoteId = selectedQuote.id;
       const path = `b2b_requests/${quoteId}`;
-      
-      // Map back internal UI status to Firestore status if needed
       const fsStatus = quoteStatusVal === 'pending_review' ? 'pending' : quoteStatusVal;
 
       await updateDoc(doc(db, 'b2b_requests', quoteId), {
+        name: qName,
+        company: qCompany,
+        email: qEmail,
+        phone: qPhone,
+        vatId: qVatId,
+        quoteNumber,
+        items: quoteItems,
         status: fsStatus,
-        // Any admin reply could be added to a new field or appended to message
         adminInternalNote: quoteReplyMsg,
         updatedAt: serverTimestamp()
       });
 
       setActionSuccess(true);
-      setTimeout(() => setActionSuccess(false), 2000);
-      setQuoteReplyMsg("");
+      setTimeout(() => setActionSuccess(false), 3000);
+      
       setSelectedQuote({
         ...selectedQuote,
-        status: quoteStatusVal
+        name: qName,
+        company: qCompany,
+        email: qEmail,
+        phone: qPhone,
+        vatId: qVatId,
+        quoteNumber,
+        items: quoteItems,
+        status: quoteStatusVal,
+        adminInternalNote: quoteReplyMsg
       });
-    } catch (e) {
-      handleFirestoreError(e, OperationType.UPDATE, `b2b_requests/${selectedQuote.id}`);
+      alert("✅ Modifiche al preventivo salvate correttamente nel database Firestore!");
+    } catch (err) {
+      console.error(err);
+      handleFirestoreError(err, OperationType.UPDATE, `b2b_requests/${selectedQuote.id}`);
+    }
+  };
+
+  // Convert Quote to Active Order inside backend API and Firestore
+  const handleConvertToOrder = async () => {
+    if (!selectedQuote) return;
+    
+    // Calculate total
+    const subtotal = quoteItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
+    const iva = subtotal * 0.22;
+    const finalTotal = subtotal + iva;
+    
+    // Format new consecutive order number
+    const newOrderNumber = `IK-${10000 + orders.length + 1}`;
+    
+    const newOrder = {
+      id: `ord-${Date.now()}`,
+      orderNumber: newOrderNumber,
+      date: new Date().toLocaleDateString('it-IT'),
+      customer: {
+        name: qName,
+        email: qEmail,
+        phone: qPhone,
+        address: "Sede Legale B2B " + (qCompany || "Privato"),
+        city: "Milano",
+        zip: "20100",
+        province: "MI",
+        piva: qVatId
+      },
+      items: quoteItems.map((item, idx) => ({
+        id: `ord-item-${idx}`,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        image: "https://www.framatek.com/2270-thickbox_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg"
+      })),
+      total: Number(finalTotal.toFixed(2)),
+      paymentMethod: `Fattura Differita B2B - Riferimento Preventivo ${quoteNumber}`,
+      shippingMethod: "Corriere Espresso Bartolini / GLS (B2B)",
+      notes: `Convertito da Preventivo B2B numero: ${quoteNumber}. Ordine di fornitura approvato dall'amministrazione.`,
+      status: 'processing' // In lavorazione
+    };
+    
+    try {
+      // 1. Submit order to backend
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newOrder)
+      });
+      
+      if (!response.ok) {
+        throw new Error("Errore nel carosello ordini del server.");
+      }
+      
+      // 2. Set quote status to "accepted" (Accettato) in Firestore
+      const quoteId = selectedQuote.id;
+      await updateDoc(doc(db, 'b2b_requests', quoteId), {
+        name: qName,
+        company: qCompany,
+        email: qEmail,
+        phone: qPhone,
+        vatId: qVatId,
+        quoteNumber,
+        items: quoteItems,
+        status: 'accepted', // Accettato
+        updatedAt: serverTimestamp()
+      });
+      
+      // Update UI
+      setSelectedQuote((prev: any) => ({
+        ...prev,
+        status: 'accepted',
+        name: qName,
+        company: qCompany,
+        email: qEmail,
+        phone: qPhone,
+        vatId: qVatId,
+        quoteNumber,
+        items: quoteItems
+      }));
+      setQuoteStatusVal('accepted');
+      setActionSuccess(true);
+      setTimeout(() => setActionSuccess(false), 4000);
+      
+      // 3. Re-fetch system orders to populate in Area Admin
+      const ordersResponse = await fetch('/api/admin/orders');
+      if (ordersResponse.ok) {
+        const orderData = await ordersResponse.json();
+        if (orderData.orders) {
+          setOrders(orderData.orders);
+        }
+      }
+      
+      alert(`✅ Successo! Il preventivo ${quoteNumber} è stato convertito felicemente nell'Ordine di Fornitura ${newOrderNumber} e inserito nei sistemi di logistica!`);
+    } catch (err) {
+      console.error(err);
+      alert("Impossibile convertire il preventivo in ordine: " + err);
+    }
+  };
+
+  // Submit quote email to client via Simulated SMTP logging
+  const handleSendQuoteEmail = async () => {
+    if (!selectedQuote) return;
+    
+    setIsEmailSending(true);
+    setEmailSendResult("");
+    
+    const subtotal = quoteItems.reduce((acc, item) => acc + (item.quantity * item.price), 0);
+    const iva = subtotal * 0.22;
+    const finalTotal = subtotal + iva;
+    
+    try {
+      const response = await fetch('/api/quotes/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          quoteId: selectedQuote.id,
+          quoteNumber: quoteNumber,
+          email: qEmail,
+          customerName: qName,
+          items: quoteItems,
+          total: finalTotal
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error("Errore del client mail server");
+      }
+      
+      // Update quote status to 'reviewed' (Preventivo inviato)
+      const quoteId = selectedQuote.id;
+      await updateDoc(doc(db, 'b2b_requests', quoteId), {
+        name: qName,
+        company: qCompany,
+        email: qEmail,
+        phone: qPhone,
+        vatId: qVatId,
+        quoteNumber,
+        items: quoteItems,
+        status: 'reviewed', // Preventivo inviato
+        updatedAt: serverTimestamp()
+      });
+      
+      setSelectedQuote((prev: any) => ({
+        ...prev,
+        status: 'reviewed',
+        name: qName,
+        company: qCompany,
+        email: qEmail,
+        phone: qPhone,
+        vatId: qVatId,
+        quoteNumber,
+        items: quoteItems
+      }));
+      setQuoteStatusVal('reviewed');
+      
+      setEmailSendResult("📧 Preventivo inviato con successo via e-mail al cliente! Trova la copia completa nel Registro Notifiche.");
+      setActionSuccess(true);
+      setTimeout(() => setActionSuccess(false), 5000);
+    } catch (err) {
+      console.error(err);
+      setEmailSendResult("❌ Errore nell'invio del preventivo commerciale.");
+    } finally {
+      setIsEmailSending(false);
     }
   };
 
@@ -346,7 +703,47 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
   const selectQuote = (q: any) => {
     setSelectedQuote(q);
     setQuoteStatusVal(q.status);
-    setQuoteReplyMsg("");
+    setQuoteReplyMsg(q.adminInternalNote || "");
+    
+    // Editable customer variables
+    setQName(q.name || "");
+    setQCompany(q.company || "");
+    setQEmail(q.email || "");
+    setQPhone(q.phone || "");
+    setQVatId(q.vatId || "");
+    
+    // Assign or generate standard quote estimate number: "2026-X"
+    if (q.quoteNumber) {
+      setQuoteNumber(q.quoteNumber);
+    } else {
+      // Find index of this quote in quotes array to assign a nice sequential index
+      const idx = quotes.length - quotes.findIndex(item => item.id === q.id);
+      const seqStr = String(idx > 0 ? idx : 1).padStart(3, "0");
+      setQuoteNumber(`2026-${seqStr}`);
+    }
+
+    // Set interactive quote items! If the database already had items, use them; otherwise, parse from the text form.
+    if (q.items && q.items.length > 0) {
+      setQuoteItems(q.items);
+    } else {
+      // Extract quantity if possible
+      let initialQty = 1;
+      const parsedQty = parseInt(q.qty);
+      if (!isNaN(parsedQty) && parsedQty > 0) {
+        initialQty = parsedQty;
+      }
+      
+      setQuoteItems([
+        {
+          id: `qi-${Date.now()}`,
+          name: q.products || "Servizio / Materiale Di Consumo Stampa",
+          quantity: initialQty,
+          price: 15.00 // Default initial price, fully editable
+        }
+      ]);
+    }
+    
+    setEmailSendResult("");
   };
 
   // Filter orders
@@ -401,14 +798,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
 
   const getQuoteBadge = (status: string) => {
     switch (status) {
+      case 'pending':
       case 'pending_review':
-        return <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold uppercase px-2.5 py-1 rounded">Da Elaborare</span>;
+      case 'Nuovo':
+        return <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold uppercase px-2 py-0.5 rounded">Nuovo</span>;
       case 'reviewed':
-        return <span className="bg-green-50 text-green-700 border border-green-200 text-[10px] font-bold uppercase px-2.5 py-1 rounded">Inviato</span>;
       case 'sent':
-        return <span className="bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold uppercase px-2.5 py-1 rounded">In Negoziazione</span>;
+      case 'Preventivo inviato':
+        return <span className="bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold uppercase px-2 py-0.5 rounded">Preventivo inviato</span>;
+      case 'accepted':
+      case 'Accettato':
+        return <span className="bg-emerald-50 text-emerald-700 border border-emerald-250 text-[10px] font-bold uppercase px-2 py-0.5 rounded">Accettato</span>;
+      case 'processing':
+      case 'In lavorazione':
+        return <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold uppercase px-2 py-0.5 rounded">In lavorazione</span>;
+      case 'shipped':
+      case 'Spedito':
+        return <span className="bg-cyan-50 text-cyan-705 border border-cyan-200 text-[10px] font-bold uppercase px-2 py-0.5 rounded">Spedito</span>;
+      case 'completed':
+      case 'Completato':
+        return <span className="bg-green-50 text-green-700 border border-green-200 text-[10px] font-bold uppercase px-2 py-0.5 rounded">Completato</span>;
+      case 'cancelled':
+      case 'Annullato':
+        return <span className="bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold uppercase px-2 py-0.5 rounded">Annullato</span>;
       default:
-        return <span className="bg-slate-50 text-slate-700 text-[10px] px-2.5 py-1 rounded">{status}</span>;
+        return <span className="bg-slate-50 text-slate-700 text-[10px] px-2 py-0.5 rounded">{status}</span>;
     }
   };
 
@@ -447,7 +861,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
                   <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input 
                     type="password" 
-                    placeholder="Codice di sicurezza (Es: INKPRINT2026)" 
+                    placeholder="" 
                     value={inputPasscode}
                     onChange={(e) => setInputPasscode(e.target.value)}
                     className="w-full bg-slate-50 border-2 border-slate-100 focus:border-blue-500 rounded-2xl py-3.5 pl-12 pr-4 outline-none font-bold text-slate-900 tracking-wider text-center transition-all"
@@ -1088,130 +1502,354 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
                 {/* 4. TAB QUOTES - PREVENTIVI COMMERCIALI */}
                 {dashboardTab === "quotes" && (
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                    {/* List of quotes */}
-                    <div className="lg:col-span-7 bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
-                      <div className="flex justify-between items-center">
-                        <h3 className="font-black text-slate-900 text-sm uppercase tracking-wider">Richieste Preventivi B2B Ricevute</h3>
-                        <span className="bg-slate-100 text-slate-700 font-bold text-[10px] uppercase px-2 py-0.5 rounded">Commerciale</span>
+                    {/* List of B2B query requests (Col-span-4) - ID, Cliente, Data, Stato */}
+                    <div className="lg:col-span-4 bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+                      <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                        <h3 className="font-black text-slate-900 text-xs uppercase tracking-wider">Richieste Consumabili B2B</h3>
+                        <span className="bg-blue-50 text-blue-700 font-extrabold text-[9px] uppercase px-2 py-0.5 rounded">Logistica</span>
                       </div>
 
                       {quotes.length === 0 ? (
-                        <div className="py-12 text-center text-slate-400 space-y-2">
+                        <div className="py-12 text-center text-slate-400 space-y-2 font-semibold">
                           <Inbox size={32} className="mx-auto opacity-50" />
-                          <p className="text-xs font-bold uppercase tracking-wider">Nessuna richiesta di preventivo ricevuta</p>
+                          <p className="text-xs uppercase tracking-wider">Nessuna richiesta ricevuta</p>
                         </div>
                       ) : (
-                        <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
-                          {quotes.map(q => (
-                            <div 
-                              key={q.id}
-                              onClick={() => selectQuote(q)}
-                              className={`p-4 rounded-2xl border transition-all cursor-pointer flex justify-between items-start ${selectedQuote?.id === q.id ? 'border-blue-600 bg-blue-50/20' : 'border-slate-100 bg-slate-50/50 hover:bg-slate-50'}`}
-                            >
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[10px] font-black text-red-500 tracking-wider uppercase">{q.id}</span>
-                                  <span className="text-[10px] font-extrabold text-slate-400 uppercase">• Partita IVA: {q.vatId}</span>
+                        <div className="space-y-3.5 max-h-[640px] overflow-y-auto pr-1">
+                          {quotes.map(q => {
+                            const dateObj = q.createdAt ? (q.createdAt.toDate ? q.createdAt.toDate() : new Date(q.createdAt)) : (q.date ? new Date(q.date) : new Date());
+                            const dateStrForm = dateObj.toLocaleDateString('it-IT');
+                            const isSel = selectedQuote?.id === q.id;
+                            return (
+                              <div 
+                                key={q.id}
+                                onClick={() => selectQuote(q)}
+                                className={`p-4 rounded-2xl border transition-all cursor-pointer text-left ${isSel ? 'border-indigo-600 bg-indigo-50/20 shadow-sm' : 'border-slate-150 bg-slate-50/40 hover:bg-slate-50'}`}
+                              >
+                                <div className="flex justify-between items-start">
+                                  <span className="text-[10px] font-black text-indigo-600 tracking-wider font-mono">{q.id}</span>
+                                  <span className="text-[10px] text-slate-400 font-medium">{dateStrForm}</span>
                                 </div>
-                                <h4 className="text-xs font-black text-slate-900">{q.company}</h4>
-                                <span className="text-[11px] text-slate-400 font-bold block">{q.name} • {q.date} • {q.qty} Prodotti</span>
+                                <h4 className="text-xs font-black text-slate-950 uppercase mt-1 line-clamp-1">{q.company && q.company !== 'N/A' ? q.company : q.name}</h4>
+                                <div className="flex justify-between items-center mt-3 pt-2.5 border-t border-slate-200/50">
+                                  <span className="text-[9px] text-slate-500 font-mono">Pezzi: {q.qty}</span>
+                                  {getQuoteBadge(q.status)}
+                                </div>
                               </div>
-                              <div className="text-right space-y-2">
-                                <span className="bg-slate-200 text-slate-700 text-[9px] px-2 py-0.5 rounded font-black uppercase">QTA: {q.qty}</span>
-                                {getQuoteBadge(q.status)}
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
 
-                    {/* View and response Quote Form */}
-                    <div className="lg:col-span-5">
+                    {/* Highly Interactive Document Generator & Work Station (Col-span-8) */}
+                    <div className="lg:col-span-8">
                       {selectedQuote ? (
-                        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
-                          <div>
-                            <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest block">Richiesta Preventivo</span>
-                            <h3 className="text-base font-black text-slate-950 uppercase tracking-tight">{selectedQuote.company}</h3>
-                            <p className="text-xs text-slate-400">Inserisci prezzi scontati personalizzati e rispondi direttamente al cliente.</p>
-                          </div>
-
-                          <div className="space-y-4 bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <span className="text-[9px] font-black text-slate-450 uppercase block">Rappresentante Aziendale</span>
-                                <p className="font-extrabold text-slate-900">{selectedQuote.name}</p>
-                              </div>
-                              <div>
-                                <span className="text-[9px] font-black text-slate-455 uppercase block">Partita IVA Azienda</span>
-                                <p className="font-bold text-slate-950">{selectedQuote.vatId}</p>
-                              </div>
+                        <div className="bg-white border border-slate-200 rounded-3xl shadow-md overflow-hidden text-xs">
+                          {/* Workspace header */}
+                          <div className="bg-slate-950 text-white p-5 flex justify-between items-center">
+                            <div>
+                              <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest block font-mono">B2B QUOTATION CENTER</span>
+                              <h3 className="text-sm font-black uppercase tracking-tight text-white">Pratica: {selectedQuote.id}</h3>
                             </div>
-                            
-                            <div className="space-y-1">
-                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Prodotti Selezionati / Volume Fornitura</span>
-                              <p className="font-bold text-slate-900 bg-white p-2.5 rounded border border-slate-200">{selectedQuote.products} (Qta: {selectedQuote.qty} unità)</p>
-                            </div>
-
-                            <div className="space-y-1">
-                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Note dell'Azienda</span>
-                              <p className="font-medium text-slate-600 italic bg-white p-2 text-xs rounded border border-slate-200">"{selectedQuote.message}"</p>
-                            </div>
-
-                            <div className="space-y-0.5 pt-2 border-t border-slate-200/60 font-bold">
-                              <p className="text-slate-500">Numero di Telefono: {selectedQuote.phone}</p>
-                              <p className="text-blue-600">Email: {selectedQuote.email}</p>
+                            <div className="flex items-center gap-3">
+                              <label className="text-[10px] font-bold text-slate-400 font-mono">Fattura / Prev N°</label>
+                              <input 
+                                type="text"
+                                className="bg-slate-900 border border-slate-800 text-white font-mono font-black text-center text-xs p-1.5 w-24 rounded focus:outline-none focus:border-indigo-500"
+                                value={quoteNumber}
+                                onChange={(e) => setQuoteNumber(e.target.value)}
+                              />
                             </div>
                           </div>
 
-                          {/* Response form */}
-                          <form onSubmit={handleUpdateQuote} className="space-y-4 pt-4 border-t border-slate-150">
-                            <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest block">Modulo Formulazione Risposta</span>
-                            
-                            <div className="space-y-2">
-                              <div className="space-y-1">
-                                <label className="text-[9px] font-black text-slate-400 uppercase block">Aggiorna Stato Sforzo</label>
-                                <select 
-                                  value={quoteStatusVal}
-                                  onChange={(e) => setQuoteStatusVal(e.target.value)}
-                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 outline-none focus:border-blue-500"
+                          <div className="p-6 space-y-6">
+                            {/* Editable Customer Fields */}
+                            <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-150 space-y-3.5">
+                              <span className="text-[9px] font-black text-indigo-700 uppercase tracking-wider block font-mono">Dati Anagrafici Cliente</span>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-bold text-slate-550 block">Rappresentante / Nome *</label>
+                                  <input 
+                                    type="text" 
+                                    className="w-full bg-white border border-slate-200 rounded-lg p-2 font-bold text-slate-900 outline-none focus:border-indigo-500"
+                                    value={qName} 
+                                    onChange={(e) => setQName(e.target.value)} 
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-bold text-slate-550 block">Ragione Sociale / Azienda</label>
+                                  <input 
+                                    type="text" 
+                                    className="w-full bg-white border border-slate-200 rounded-lg p-2 font-bold text-slate-900 outline-none focus:border-indigo-500"
+                                    value={qCompany} 
+                                    onChange={(e) => setQCompany(e.target.value)} 
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-bold text-slate-550 block">Partita IVA / Codice Fiscale</label>
+                                  <input 
+                                    type="text" 
+                                    className="w-full bg-white border border-slate-200 rounded-lg p-2 font-mono font-bold text-slate-900 outline-none focus:border-indigo-500"
+                                    value={qVatId} 
+                                    onChange={(e) => setQVatId(e.target.value)} 
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-bold text-slate-55 block">Insegna E-Mail *</label>
+                                  <input 
+                                    type="email" 
+                                    className="w-full bg-white border border-slate-200 rounded-lg p-2 font-bold text-slate-900 outline-none focus:border-indigo-500"
+                                    value={qEmail} 
+                                    onChange={(e) => setQEmail(e.target.value)} 
+                                  />
+                                </div>
+                                <div className="space-y-1 col-span-2">
+                                  <label className="text-[9px] font-bold text-slate-55 block">Recapito Telefonico Diretto</label>
+                                  <input 
+                                    type="text" 
+                                    className="w-full bg-white border border-slate-200 rounded-lg p-2 font-bold text-slate-900 outline-none focus:border-indigo-500"
+                                    value={qPhone} 
+                                    onChange={(e) => setQPhone(e.target.value)} 
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Client demand text note */}
+                            <div className="bg-amber-50/40 p-3 rounded-xl border border-amber-100 text-[11px] leading-relaxed">
+                              <strong className="text-amber-800">Richiesta Originale:</strong> {selectedQuote.products} (Qta stimata: {selectedQuote.qty} pz)
+                              {selectedQuote.message && <div className="mt-1 font-medium text-slate-600 italic">" {selectedQuote.message} "</div>}
+                            </div>
+
+                            {/* Interactive Items Table */}
+                            <div className="space-y-3">
+                              <div className="flex justify-between items-center">
+                                <span className="text-[9px] font-black text-indigo-700 uppercase tracking-wider block font-mono">Righe Di Fornitura Preventivo</span>
+                                <button 
+                                  type="button"
+                                  onClick={() => {
+                                    setQuoteItems([
+                                      ...quoteItems,
+                                      {
+                                        id: `qi-${Date.now()}`,
+                                        name: "Toner Compatibile / Cartuccia Inkjet",
+                                        quantity: 1,
+                                        price: 15.00
+                                      }
+                                    ]);
+                                  }}
+                                  className="text-[9px] bg-slate-900 hover:bg-slate-800 text-white px-2.5 py-1.5 uppercase font-black tracking-wider rounded"
                                 >
-                                  <option value="pending_review">In Attesa Elaborazione</option>
-                                  <option value="sent">Sotto Analisi Commerciale</option>
-                                  <option value="reviewed">Preventivo Erogato (Inviato)</option>
-                                </select>
+                                  + Nuova Riga Prodotto
+                                </button>
                               </div>
 
+                              <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+                                <table className="w-full text-left border-collapse">
+                                  <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-200 text-[9px] font-black text-slate-450 uppercase tracking-wider">
+                                      <th className="p-3 w-7/12">Consumabile / Descrizione Riga</th>
+                                      <th className="p-3 w-1.5/12 text-center">Qtà</th>
+                                      <th className="p-3 w-2/12 text-right">Prez. Unit (€)</th>
+                                      <th className="p-3 w-1.5/12 text-right">Rim.</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-100">
+                                    {quoteItems.map((item, index) => (
+                                      <tr key={item.id} className="hover:bg-slate-50/50">
+                                        <td className="p-2">
+                                          <input 
+                                            type="text"
+                                            className="w-full bg-white focus:bg-slate-50 border border-slate-200 rounded/md px-2 py-1 font-semibold text-slate-900 text-xs"
+                                            value={item.name}
+                                            onChange={(e) => {
+                                              const updated = [...quoteItems];
+                                              updated[index].name = e.target.value;
+                                              setQuoteItems(updated);
+                                            }}
+                                            placeholder="Nome o codice consumabile"
+                                          />
+                                        </td>
+                                        <td className="p-2">
+                                          <input 
+                                            type="number"
+                                            className="w-14 mx-auto text-center bg-white border border-slate-200 focus:bg-slate-50 rounded/md px-1 py-1 font-bold text-slate-900 text-xs"
+                                            value={item.quantity}
+                                            min="1"
+                                            onChange={(e) => {
+                                              const updated = [...quoteItems];
+                                              updated[index].quantity = parseInt(e.target.value) || 1;
+                                              setQuoteItems(updated);
+                                            }}
+                                          />
+                                        </td>
+                                        <td className="p-2">
+                                          <input 
+                                            type="number"
+                                            step="0.01"
+                                            className="w-20 text-right bg-white border border-slate-200 focus:bg-slate-50 rounded/md px-2 py-1 font-bold text-slate-900 text-xs"
+                                            value={item.price}
+                                            onChange={(e) => {
+                                              const updated = [...quoteItems];
+                                              updated[index].price = parseFloat(e.target.value) || 0;
+                                              setQuoteItems(updated);
+                                            }}
+                                          />
+                                        </td>
+                                        <td className="p-2 text-center">
+                                          <button 
+                                            type="button"
+                                            onClick={() => {
+                                              const updated = quoteItems.filter(qi => qi.id !== item.id);
+                                              setQuoteItems(updated);
+                                            }}
+                                            className="w-6 h-6 rounded bg-rose-50 hover:bg-rose-150 text-rose-600 flex items-center justify-center font-bold text-sm"
+                                          >
+                                            ✕
+                                          </button>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+
+                            {/* Totals & Notes Display */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start font-bold">
+                              {/* Left: Proposal Message / Reply text block */}
                               <div className="space-y-1">
-                                <label className="text-[9px] font-black text-slate-400 uppercase block">Corpo della Proposta Economica / Email al Cliente</label>
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block font-mono">Note per Preventivo o Lettera Accompagnamento Email</label>
                                 <textarea
                                   value={quoteReplyMsg}
                                   onChange={(e) => setQuoteReplyMsg(e.target.value)}
-                                  placeholder="Esempio: Formula di sconto 15% sui Toner Brother TN-2420 compatibili. Totale quotazione riservata: €..."
-                                  className="w-full bg-slate-50 border border-slate-200 focus:bg-white rounded-xl p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-blue-500 h-28"
-                                  required
+                                  placeholder="Scrivi qui i termini di consegna o condizioni di sconto personalizzate per questo preventivo. Verranno stampate sul PDF."
+                                  className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 rounded-xl p-3 text-xs text-slate-900 outline-none h-28"
                                 />
+                              </div>
+
+                              {/* Right: Tax Breakdown */}
+                              <div className="bg-slate-900 text-white p-5 rounded-2xl border border-slate-800 space-y-2.5 font-mono text-[11px]">
+                                <span className="text-[9px] font-black text-indigo-400 uppercase tracking-wider block">Quadro Economico B2B</span>
+                                <div className="flex justify-between border-b border-slate-800 pb-1.5">
+                                  <span className="text-slate-400">Subtotale Imponibile:</span>
+                                  <span className="text-white">€ {quoteItems.reduce((acc, i) => acc + (i.quantity * i.price), 0).toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between border-b border-slate-800 pb-1.5">
+                                  <span className="text-slate-400">IVA d'Imposta (22%):</span>
+                                  <span className="text-white">€ {(quoteItems.reduce((acc, i) => acc + (i.quantity * i.price), 0) * 0.22).toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between text-indigo-400 text-xs font-black pt-1">
+                                  <span>TOTALE COMPLESSIVO:</span>
+                                  <span>€ {(quoteItems.reduce((acc, i) => acc + (i.quantity * i.price), 0) * 1.22).toFixed(2)}</span>
+                                </div>
                               </div>
                             </div>
 
-                            <button 
-                              type="submit"
-                              className="w-full bg-indigo-600 text-white rounded-xl py-3 text-xs font-black uppercase tracking-wider hover:bg-indigo-700 transition-all shadow-md shadow-indigo-50"
-                            >
-                              Invia preventivo ed aggiorna stato
-                            </button>
+                            {/* Interactive B2B actions and state machine */}
+                            <div className="pt-5 border-t border-slate-150 space-y-4">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="space-y-1 flex-1 max-w-xs">
+                                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block font-mono">Aggiorna Stato Pratica</label>
+                                  <select 
+                                    value={quoteStatusVal}
+                                    onChange={(e) => setQuoteStatusVal(e.target.value)}
+                                    className="w-full bg-slate-100 hover:bg-slate-150 border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-900 outline-none focus:border-indigo-500"
+                                  >
+                                    <option value="pending_review">Nuovo</option>
+                                    <option value="reviewed">Preventivo inviato</option>
+                                    <option value="accepted">Accettato</option>
+                                    <option value="processing">In lavorazione</option>
+                                    <option value="shipped">Spedito</option>
+                                    <option value="completed">Completato</option>
+                                    <option value="cancelled">Annullato</option>
+                                  </select>
+                                </div>
 
-                            {actionSuccess && (
-                              <p className="text-xs text-green-600 font-extrabold flex items-center gap-1 bg-green-50 border border-green-200 rounded-xl p-2 text-center justify-center">
-                                <Check size={16} /> Preventivo elaborato e notificato via Email con successo!
-                              </p>
-                            )}
-                          </form>
+                                <div className="flex gap-2 self-end">
+                                  <button 
+                                    type="button" 
+                                    onClick={() => handleUpdateQuote()}
+                                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold uppercase tracking-wider text-[10px] px-5 py-3 rounded-xl transition-all"
+                                  >
+                                    Salva Stato e Righe
+                                  </button>
+                                  
+                                  <button 
+                                    type="button" 
+                                    onClick={handleConvertToOrder}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-wider text-[10px] px-5 py-3 rounded-xl transition-all shadow-md shadow-emerald-50 flex items-center gap-1.5"
+                                  >
+                                    ✅ Converti in Ordine
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Document Printing, Shipping notes, Email actions */}
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-150">
+                                <button 
+                                  type="button"
+                                  onClick={() => {
+                                    setShowDocType("preventivo");
+                                    setShowPrintModal(true);
+                                  }}
+                                  className="bg-white hover:bg-slate-50 text-indigo-600 border border-slate-200 rounded-xl p-3 font-black uppercase tracking-wider text-[9px] transition-all flex flex-col justify-center items-center gap-1.5"
+                                >
+                                  <Printer size={16} />
+                                  🖨️ Genera PDF Preventivo
+                                </button>
+                                <button 
+                                  type="button"
+                                  onClick={() => {
+                                    setShowDocType("ddt");
+                                    setShowPrintModal(true);
+                                  }}
+                                  className="bg-white hover:bg-slate-50 text-indigo-600 border border-slate-200 rounded-xl p-3 font-black uppercase tracking-wider text-[9px] transition-all flex flex-col justify-center items-center gap-1.5"
+                                >
+                                  <Truck size={16} />
+                                  📦 Genera DDT Trasporto
+                                </button>
+                                <button 
+                                  type="button"
+                                  onClick={() => {
+                                    setShowDocType("conferma_ordine");
+                                    setShowPrintModal(true);
+                                  }}
+                                  className="bg-white hover:bg-slate-50 text-indigo-600 border border-slate-200 rounded-xl p-3 font-black uppercase tracking-wider text-[9px] transition-all flex flex-col justify-center items-center gap-1.5"
+                                >
+                                  <FileText size={16} />
+                                  🧾 Genera Conferma Ordine
+                                </button>
+                                <button 
+                                  type="button"
+                                  disabled={isEmailSending}
+                                  onClick={handleSendQuoteEmail}
+                                  className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 text-white rounded-xl p-3 font-black uppercase tracking-wider text-[9px] transition-all flex flex-col justify-center items-center gap-1.5 shadow-sm"
+                                >
+                                  <Mail size={16} />
+                                  {isEmailSending ? "Invio in corso..." : "📧 Invia Preventivo Email"}
+                                </button>
+                              </div>
+
+                              {emailSendResult && (
+                                <p className="text-[11px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-150 p-2.5 rounded-xl text-center">
+                                  {emailSendResult}
+                                </p>
+                              )}
+                              
+                              {actionSuccess && (
+                                <p className="text-[11px] font-extrabold text-green-700 bg-green-50 border border-green-150 p-2.5 rounded-xl text-center flex items-center justify-center gap-1.5">
+                                  <Check size={14} /> Database sincronizzato correttamente nel Cloud!
+                                </p>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       ) : (
-                        <div className="bg-white border border-slate-200 rounded-3xl p-10 text-center text-slate-400 space-y-3">
-                          <FileText size={36} className="mx-auto opacity-50" />
-                          <p className="text-xs font-bold uppercase tracking-wider leading-relaxed">Seleziona una richiesta di preventivo B2B per valutare il volume aziendale, calcolare lo sconto ed erogare la fattura proforma.</p>
+                        <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center text-slate-400 space-y-4">
+                          <FileText size={44} className="mx-auto opacity-50 text-indigo-500" />
+                          <p className="text-xs font-bold uppercase tracking-widest leading-relaxed max-w-sm mx-auto">Seleziona una richiesta di preventivo B2B dalla lista per accedere al Quadro Economico interattivo, calcolare l'IVA ed esportare i documenti professionali erogati.</p>
                         </div>
                       )}
                     </div>
@@ -1417,223 +2055,534 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
                   </div>
                 )}
 
-                {/* --- 7. TAB DANEA EASYFATT INTEGRATION --- */}
+                {/* --- 7. TAB MULTI-CHANNEL INTEGRATIONS PANEL (PRESTASHOP & DANEA EASYFATT & CSV) --- */}
                 {dashboardTab === "danea" && (
                   <div className="bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-sm space-y-8">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    {/* Header bar */}
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-2 border-b border-slate-100">
                       <div>
-                        <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-2" id="danea-integration-title">
-                          <RefreshCw className="text-blue-500 animate-spin-slow" /> Integrazione Danea Easyfatt
+                        <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
+                          <Layers className="text-indigo-600 animate-pulse" /> Sincronizzazione Gestionale &amp; WebService
                         </h3>
-                        <p className="text-xs text-slate-500 font-medium">Predisposizione professionale per sincronizzazione ordini, anagrafiche, magazzino e fatturazione.</p>
+                        <p className="text-xs text-slate-500 font-medium">Predisposizione avanzata e ponte tecnologico per Danea Easyfatt, e-commerce PrestaShop e flussi CSV.</p>
                       </div>
-                      <span className="bg-teal-50 text-teal-700 border border-teal-200 text-xs font-black uppercase px-2.5 py-1 rounded-xl tracking-wider shrink-0 flex items-center gap-1.5 shadow-sm">
-                        <span className="w-2.5 h-2.5 rounded-full bg-teal-500 animate-pulse"></span>
-                        PRONTO PER IL COLLEGAMENTO
+                      <span className="bg-emerald-50 text-emerald-700 border border-emerald-250 text-xs font-black uppercase px-2.5 py-1 rounded-xl tracking-wider shrink-0 flex items-center gap-1.5 shadow-sm">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                        GATEWAYS ATTIVI B2B
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                      {/* Left Side: Dynamic Download & Integration Details */}
-                      <div className="space-y-6">
-                        {/* 1. Manual Download Panel */}
-                        <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-                          <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase block">Metodo 1: Esportazione Manuale XML</span>
-                          <h4 className="font-extrabold text-sm text-slate-900 uppercase">Esporta Ordini correnti per Danea</h4>
-                          <p className="text-xs text-slate-650 leading-relaxed font-semibold">
-                            Scarica all'istante l'intero database ordini aggiornato in formato XML standard <strong className="text-slate-805">EasyfattDocuments v2</strong>. Puoi importarlo direttamente in Danea per generare ddt, fatture o distinte in un clic.
-                          </p>
-                          <div className="pt-2">
-                            <button
-                              id="download-danea-xml-btn"
-                              onClick={() => {
-                                // Generate XML inside client and download it!
-                                const xmlStr = generateClientDaneaXml(orders);
-                                const blob = new Blob([xmlStr], { type: 'application/xml;charset=utf-8;' });
-                                const url = window.URL.createObjectURL(blob);
-                                const link = document.createElement('a');
-                                link.href = url;
-                                link.setAttribute('download', 'danea_easyfatt_ordini.xml');
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                              }}
-                              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-wider py-3 px-6 rounded-2xl shadow-lg shadow-blue-100 hover:shadow-blue-200 transition-all active:scale-95 flex items-center justify-center gap-2"
-                            >
-                              <Download size={16} />
-                              Sblocca &amp; Scarica XML Easyfatt ({orders.length} ordini)
-                            </button>
+                    {/* CONTROL VERIFICATIONS WIDGET FOR PRE-DEPLOY */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-3xl p-6 space-y-4">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <Shield size={20} className={`${[checkedHosting, checkedPrestashop, checkedEasyfatt, checkedEasyPrestaModule].filter(Boolean).length === 4 ? 'text-green-600' : 'text-amber-600'}`} />
+                          <div>
+                            <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Verifica Requisiti Preliminari di Collegamento (Pre-Deploy)</h4>
+                            <p className="text-[11px] text-slate-500 font-medium">Controlla l'infrastruttura richiesta prima di procedere con la pubblicazione in produzione.</p>
                           </div>
                         </div>
-
-                        {/* 2. Automatic Link parameters */}
-                        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-                          <span className="text-[10px] font-black tracking-widest text-blue-605 uppercase block">Metodo 2: Sincronizzazione Automatica HTTP</span>
-                          <h4 className="font-extrabold text-sm text-slate-900 uppercase">Parametri Collegamento Diretto</h4>
-                          <p className="text-xs text-slate-500">
-                            Copia questi parametri e incollali nel tuo gestionale Danea Easyfatt (<em className="font-semibold italic">Strumenti &gt; E-commerce &gt; Configura</em>) per automatizzare lo scaricamento in tempo reale.
-                          </p>
-                          
-                          <div className="space-y-3 font-mono text-xs">
-                            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-105 space-y-1">
-                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block font-sans">1. Piattaforma E-commerce</span>
-                              <strong className="text-slate-950 font-black">Sito web generico (file di scambio XML)</strong>
-                            </div>
-                            
-                            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-105 space-y-1">
-                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block font-sans">2. URL di Ricezione (Download Ordini)</span>
-                              <div className="flex items-center justify-between gap-1">
-                                <span className="text-blue-600 font-extrabold truncate text-[11px] block">{window.location.origin}/api/danea/orders?apiKey=inkprint2026</span>
-                                <button
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(`${window.location.origin}/api/danea/orders?apiKey=inkprint2026`);
-                                    alert('URL Ordini copiato nei appunti!');
-                                  }}
-                                  className="text-[10px] text-slate-450 hover:text-blue-605 font-sans font-black uppercase tracking-tight"
-                                >
-                                  Copia
-                                </button>
-                              </div>
-                            </div>
-
-                            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-105 space-y-1">
-                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block font-sans">3. URL di Invio (Sincronizzazione Giacenze)</span>
-                              <div className="flex items-center justify-between gap-1">
-                                <span className="text-blue-600 font-extrabold truncate text-[11px] block">{window.location.origin}/api/danea/products?apiKey=inkprint2026</span>
-                                <button
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(`${window.location.origin}/api/danea/products?apiKey=inkprint2026`);
-                                    alert('URL Prodotti copiato nei appunti!');
-                                  }}
-                                  className="text-[10px] text-slate-450 hover:text-blue-655 font-sans font-black uppercase tracking-tight"
-                                >
-                                  Copia
-                                </button>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-105 space-y-1">
-                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block font-sans">4. Username</span>
-                                <strong className="text-slate-950 font-black">admin</strong>
-                              </div>
-                              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-105 space-y-1">
-                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block font-sans">5. Password d'Accesso (API Key)</span>
-                                <strong className="text-slate-950 font-black">inkprint2026</strong>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                        <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-xl shrink-0 tracking-wider font-mono border ${
+                          [checkedHosting, checkedPrestashop, checkedEasyfatt, checkedEasyPrestaModule].filter(Boolean).length === 4 
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}>
+                          {[checkedHosting, checkedPrestashop, checkedEasyfatt, checkedEasyPrestaModule].filter(Boolean).length} di 4 Controlli
+                        </span>
                       </div>
 
-                      {/* Right Side: Operations Sandbox & Preview */}
-                      <div className="space-y-6">
-                        {/* 1. Technical Test Suite */}
-                        <div className="bg-slate-950 text-slate-200 p-6 rounded-3xl border border-slate-800 shadow-xl space-y-4">
-                          <div className="flex justify-between items-center">
-                            <span className="text-[10px] font-black tracking-widest text-blue-400 uppercase">Easyfatt Diagnostics Console</span>
-                            <span className="text-[9px] bg-slate-800 text-blue-300 font-mono px-2 py-0.5 rounded font-black">GATEWAY_ACTIVE</span>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <label className={`flex items-start gap-3 p-3.5 rounded-2xl border transition-all cursor-pointer ${checkedHosting ? 'bg-white border-indigo-600 shadow-sm' : 'bg-slate-100/50 hover:bg-slate-100 border-slate-200'}`}>
+                          <input 
+                            type="checkbox" 
+                            checked={checkedHosting}
+                            onChange={(e) => setCheckedHosting(e.target.checked)}
+                            className="mt-1 h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer" 
+                          />
+                          <div className="space-y-1">
+                            <span className="text-xs font-black text-slate-900 block">1. Hai già un Hosting attivo?</span>
+                            <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                              Necessario per alloggiare il sito e-commerce o l'interfaccia API che risponde alle richieste dei toner e della fatturazione telematiche.
+                            </p>
                           </div>
+                        </label>
 
-                          <h4 className="font-extrabold text-sm text-white uppercase tracking-tight">Esegui Test Comunicazione E-commerce</h4>
-                          <p className="text-xs text-slate-400 leading-relaxed font-semibold">
-                            Verifica istantaneamente la consistenza del tracciato XML e il corretto indirizzamento della chiave di licenza senza bisogno di avviare il software esterno.
-                          </p>
-
-                          <div className="flex gap-2">
-                            <button
-                              onClick={async () => {
-                                try {
-                                  const url = `/api/danea/orders?apiKey=inkprint2026`;
-                                  const res = await fetch(url);
-                                  if (res.ok) {
-                                    const text = await res.text();
-                                    setXmlPreview(text);
-                                    setErrorPreview("");
-                                  } else {
-                                    setErrorPreview("Errore di convalida credenziali: " + res.status);
-                                    setXmlPreview("");
-                                  }
-                                } catch (e: any) {
-                                  setErrorPreview(e.message);
-                                  setXmlPreview("");
-                                }
-                              }}
-                              className="bg-slate-850 hover:bg-slate-800 border border-slate-700 text-white font-black text-[11px] uppercase tracking-wider py-2.5 px-4 rounded-xl transition-all flex items-center gap-1"
-                            >
-                              Richiedi Feed XML Ordini
-                            </button>
-
-                            <button
-                              onClick={() => {
-                                setXmlPreview("");
-                                setErrorPreview("");
-                              }}
-                              className="bg-transparent hover:bg-slate-900 text-slate-400 font-black text-[11px] uppercase tracking-wider py-2.5 px-4 rounded-xl transition-all"
-                            >
-                              Svuota Console
-                            </button>
+                        <label className={`flex items-start gap-3 p-3.5 rounded-2xl border transition-all cursor-pointer ${checkedPrestashop ? 'bg-white border-indigo-600 shadow-sm' : 'bg-slate-100/50 hover:bg-slate-100 border-slate-200'}`}>
+                          <input 
+                            type="checkbox" 
+                            checked={checkedPrestashop}
+                            onChange={(e) => setCheckedPrestashop(e.target.checked)}
+                            className="mt-1 h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer" 
+                          />
+                          <div className="space-y-1">
+                            <span className="text-xs font-black text-slate-900 block">2. Hai già installato PrestaShop?</span>
+                            <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                              L'ambiente e-commerce deve essere attivo (versione 1.7 o 8.x) con le API Webservice abilitate e con i permessi di lettura/scrittura attivi.
+                            </p>
                           </div>
+                        </label>
 
-                          {errorPreview && (
-                            <div className="bg-rose-950/50 border border-rose-800 text-rose-300 p-3 rounded-xl text-xs font-mono">
-                              ❌ {errorPreview}
+                        <label className={`flex items-start gap-3 p-3.5 rounded-2xl border transition-all cursor-pointer ${checkedEasyfatt ? 'bg-white border-indigo-600 shadow-sm relative' : 'bg-slate-100/50 hover:bg-slate-100 border-slate-200 shadow-none'}`}>
+                          <input 
+                            type="checkbox" 
+                            checked={checkedEasyfatt}
+                            onChange={(e) => setCheckedEasyfatt(e.target.checked)}
+                            className="mt-1 h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer" 
+                          />
+                          <div className="space-y-1">
+                            <span className="text-xs font-black text-slate-900 block">3. Hai una licenza Easyfatt attiva?</span>
+                            <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                              Disporre di Danea Easyfatt versione Enterprise (o Professional idonea) con funzionalità e-commerce per lo scambio flussi XML.
+                            </p>
+                          </div>
+                        </label>
+
+                        <label className={`flex items-start gap-3 p-3.5 rounded-2xl border transition-all cursor-pointer ${checkedEasyPrestaModule ? 'bg-white border-indigo-600 shadow-sm' : 'bg-slate-100/50 hover:bg-slate-100 border-slate-200'}`}>
+                          <input 
+                            type="checkbox" 
+                            checked={checkedEasyPrestaModule}
+                            onChange={(e) => setCheckedEasyPrestaModule(e.target.checked)}
+                            className="mt-1 h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer" 
+                          />
+                          <div className="space-y-1">
+                            <span className="text-xs font-black text-slate-900 block">4. Hai il modulo di collegamento Easyfatt ↔ PrestaShop?</span>
+                            <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                              Il modulo di raccordo tradurrà agilmente i flussi d'acquisto in fatture elettroniche, preventivi commerciali avanzati, DDT e giacenze.
+                            </p>
+                          </div>
+                        </label>
+                      </div>
+
+                      <div className="pt-1">
+                        {[checkedHosting, checkedPrestashop, checkedEasyfatt, checkedEasyPrestaModule].filter(Boolean).length === 4 ? (
+                          <div className="bg-emerald-500 text-white rounded-2xl p-4 flex items-center gap-3 shadow-md shadow-emerald-100">
+                            <span className="text-xl">🏆</span>
+                            <div className="flex-1">
+                              <span className="text-xs font-black block uppercase tracking-wide">Pronto per il deploy</span>
+                              <p className="text-[10px] opacity-90 font-medium leading-none mt-1">L'architettura Ink&amp;Print è ora pronta per essere allacciata con i canali e-commerce e con i gestionali Danea Easyfatt.</p>
                             </div>
-                          )}
-
-                          {xmlPreview && (
-                            <div className="space-y-1.5">
-                              <span className="text-[9px] font-black text-slate-500 uppercase block font-sans">XML Risposta Server (Primi 500 caratteri)</span>
-                              <pre className="bg-slate-900 p-3 rounded-2xl border border-slate-800 text-[10px] font-mono whitespace-pre-wrap overflow-x-auto max-h-[160px] text-emerald-400 text-left">
-                                {xmlPreview.substring(0, 500) + (xmlPreview.length > 500 ? '\n... [TRUNCATED FOR DISPLAY]' : '')}
-                              </pre>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* 2. Stock / Giacenze Sync Simulation */}
-                        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-                          <span className="text-[10px] font-black tracking-widest text-indigo-650 uppercase block font-bold">Simulatore Sincronizzazione Magazzino</span>
-                          <h4 className="font-extrabold text-sm text-slate-900 uppercase">Invia Giacenze da Danea</h4>
-                          <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                            Simula il caricamento simultaneo delle giacenze di magazzino inviato periodicamente da Easyfatt per allineare disponibilità e prezzi sul sito.
-                          </p>
-
-                          <div className="space-y-3">
-                            <label className="text-[9px] font-black text-slate-405 uppercase tracking-widest block font-sans">Simula XML Danea Giacenze</label>
-                            <textarea
-                              rows={3}
-                              value={simXmlProducts}
-                              onChange={(e) => setSimXmlProducts(e.target.value)}
-                              className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-2xl py-2 px-3 outline-none font-mono text-[11px] text-slate-800"
-                            />
-                            
-                            <button
-                              onClick={async () => {
-                                try {
-                                  const res = await fetch(`/api/danea/products?apiKey=inkprint2026`, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/xml' },
-                                    body: simXmlProducts
-                                  });
-                                  if (res.ok) {
-                                    const data = await res.json();
-                                    alert(`Successo!\n${data.message}`);
-                                  } else {
-                                    alert(`Errore di comunicazione: ${res.status}`);
-                                  }
-                                } catch (e: any) {
-                                  alert(`Errore: ${e.message}`);
-                                }
-                              }}
-                              className="bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider py-2.5 px-5 rounded-2xl shadow-md transition-all active:scale-95 animate-pulse"
-                            >
-                              Invia &amp; Sincronizza Prodotti
-                            </button>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="bg-amber-500 text-white rounded-2xl p-4 flex items-center gap-3">
+                            <span className="text-xl">⚠️</span>
+                            <div className="flex-1">
+                              <span className="text-xs font-black block uppercase tracking-wide">Verifiche Fondamentali in Sospeso ({4 - [checkedHosting, checkedPrestashop, checkedEasyfatt, checkedEasyPrestaModule].filter(Boolean).length} richiesti)</span>
+                              <p className="text-[10px] opacity-90 font-medium leading-none mt-1">Soddisfa tutti i requisiti elencati sopra spuntando le opzioni interattive prima di lanciare la pubblicazione in produzione.</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
+
+                    {/* Navigation Sub-Tabs and Channels */}
+                    <div className="flex gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200">
+                      <button
+                        onClick={() => setSyncSubTab("danea")}
+                        className={`flex-1 text-center py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${syncSubTab === "danea" ? "bg-white text-slate-900 shadow-sm border border-slate-200" : "text-slate-600 hover:text-slate-900"}`}
+                      >
+                        📊 Danea Easyfatt
+                      </button>
+                      <button
+                        onClick={() => setSyncSubTab("prestashop")}
+                        className={`flex-1 text-center py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${syncSubTab === "prestashop" ? "bg-white text-slate-900 shadow-sm border border-slate-200" : "text-slate-600 hover:text-slate-900"}`}
+                      >
+                        ⚡ PrestaShop API
+                      </button>
+                      <button
+                        onClick={() => setSyncSubTab("csv")}
+                        className={`flex-1 text-center py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${syncSubTab === "csv" ? "bg-white text-slate-900 shadow-sm border border-slate-200" : "text-slate-600 hover:text-slate-900"}`}
+                      >
+                        📋 Catalogo CSV
+                      </button>
+                    </div>
+
+                    {/* TAB CONTENT 1: DANEA EASYFATT */}
+                    {syncSubTab === "danea" && (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {/* Left Side: Dynamic Download & Integration Details */}
+                        <div className="space-y-6">
+                          {/* 1. Manual Download Panel */}
+                          <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                            <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase block">Metodo 1: Esportazione Manuale XML</span>
+                            <h4 className="font-extrabold text-sm text-slate-900 uppercase">Esporta Ordini correnti per Danea</h4>
+                            <p className="text-xs text-slate-650 leading-relaxed font-semibold">
+                              Scarica all'istante l'intero database ordini aggiornato in formato XML standard <strong className="text-slate-805">EasyfattDocuments v2</strong>. Puoi importarlo direttamente in Danea per generare ddt, fatture o distinte in un clic.
+                            </p>
+                            <div className="pt-2">
+                              <button
+                                id="download-danea-xml-btn"
+                                onClick={() => {
+                                  const xmlStr = generateClientDaneaXml(orders);
+                                  const blob = new Blob([xmlStr], { type: 'application/xml;charset=utf-8;' });
+                                  const url = window.URL.createObjectURL(blob);
+                                  const link = document.createElement('a');
+                                  link.href = url;
+                                  link.setAttribute('download', 'danea_easyfatt_ordini.xml');
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                }}
+                                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-wider py-3 px-6 rounded-2xl shadow-lg shadow-blue-100 hover:shadow-blue-200 transition-all active:scale-95 flex items-center justify-center gap-2"
+                              >
+                                <Download size={16} />
+                                Scarica XML Easyfatt ({orders.length} ordini)
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* 2. Automatic Link parameters */}
+                          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                            <span className="text-[10px] font-black tracking-widest text-blue-605 uppercase block">Metodo 2: Sincronizzazione Automatica HTTP</span>
+                            <h4 className="font-extrabold text-sm text-slate-900 uppercase">Parametri Collegamento Diretto</h4>
+                            <p className="text-xs text-slate-500">
+                              Copia questi parametri e incollali nel tuo gestionale Danea Easyfatt (<em className="font-semibold italic">Strumenti &gt; E-commerce &gt; Configura</em>) per automatizzare lo scaricamento in tempo reale.
+                            </p>
+                            
+                            <div className="space-y-3 font-mono text-xs">
+                              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-105 space-y-1">
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block font-sans">1. Piattaforma E-commerce</span>
+                                <strong className="text-slate-950 font-black">Sito web generico (file di scambio XML)</strong>
+                              </div>
+                              
+                              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-105 space-y-1">
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block font-sans">2. URL di Ricezione (Download Ordini)</span>
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="text-blue-600 font-extrabold truncate text-[11px] block">{window.location.origin}/api/danea/orders?apiKey=inkprint2026</span>
+                                  <button
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(`${window.location.origin}/api/danea/orders?apiKey=inkprint2026`);
+                                      alert('URL Ordini copiato nei appunti!');
+                                    }}
+                                    className="text-[10px] text-slate-455 hover:text-blue-600 font-sans font-black uppercase tracking-tight"
+                                  >
+                                    Copia
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-105 space-y-1">
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block font-sans">3. URL di Invio (Sincronizzazione Giacenze)</span>
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="text-blue-600 font-extrabold truncate text-[11px] block">{window.location.origin}/api/danea/products?apiKey=inkprint2026</span>
+                                  <button
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(`${window.location.origin}/api/danea/products?apiKey=inkprint2026`);
+                                      alert('URL Prodotti copiato nei appunti!');
+                                    }}
+                                    className="text-[10px] text-slate-455 hover:text-blue-600 font-sans font-black uppercase tracking-tight"
+                                  >
+                                    Copia
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-105 space-y-1">
+                                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block font-sans">4. Username</span>
+                                  <strong className="text-slate-950 font-black">admin</strong>
+                                </div>
+                                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-105 space-y-1">
+                                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block font-sans">5. Password d'Accesso (API Key)</span>
+                                  <strong className="text-slate-950 font-black">inkprint2026</strong>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right Side: Operations Sandbox & Diagnostics */}
+                        <div className="space-y-6">
+                          {/* 1. Diagnostics Console */}
+                          <div className="bg-slate-950 text-slate-200 p-6 rounded-3xl border border-slate-800 shadow-xl space-y-4">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] font-black tracking-widest text-blue-400 uppercase">Easyfatt Diagnostics Console</span>
+                              <span className="text-[9px] bg-slate-800 text-blue-300 font-mono px-2 py-0.5 rounded font-black">GATEWAY_ACTIVE</span>
+                            </div>
+
+                            <h4 className="font-extrabold text-sm text-white uppercase tracking-tight">Esegui Test Comunicazione E-commerce</h4>
+                            <p className="text-xs text-slate-400 leading-relaxed font-semibold">
+                              Verifica istantaneamente la consistenza del tracciato XML e il corretto indirizzamento della chiave di licenza senza bisogno di avviare il software esterno.
+                            </p>
+
+                            <div className="flex gap-2">
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const url = `/api/danea/orders?apiKey=inkprint2026`;
+                                    const res = await fetch(url);
+                                    if (res.ok) {
+                                      const text = await res.text();
+                                      setXmlPreview(text);
+                                      setErrorPreview("");
+                                    } else {
+                                      setErrorPreview("Errore di convalida credenziali: " + res.status);
+                                      setXmlPreview("");
+                                    }
+                                  } catch (e: any) {
+                                    setErrorPreview(e.message);
+                                    setXmlPreview("");
+                                  }
+                                }}
+                                className="bg-slate-850 hover:bg-slate-850 border border-slate-700 text-white font-black text-[11px] uppercase tracking-wider py-2.5 px-4 rounded-xl transition-all flex items-center gap-1"
+                              >
+                                Richiedi Feed XML Ordini
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  setXmlPreview("");
+                                  setErrorPreview("");
+                                }}
+                                className="bg-transparent hover:bg-slate-900 text-slate-400 font-black text-[11px] uppercase tracking-wider py-2.5 px-4 rounded-xl transition-all"
+                              >
+                                Svuota Console
+                              </button>
+                            </div>
+
+                            {errorPreview && (
+                              <div className="bg-rose-950/50 border border-rose-800 text-rose-300 p-3 rounded-xl text-xs font-mono">
+                                ❌ {errorPreview}
+                              </div>
+                            )}
+
+                            {xmlPreview && (
+                              <div className="space-y-1.5">
+                                <span className="text-[9px] font-black text-slate-500 uppercase block font-sans">XML Risposta Server (Primi 500 caratteri)</span>
+                                <pre className="bg-slate-900 p-3 rounded-2xl border border-slate-800 text-[10px] font-mono whitespace-pre-wrap overflow-x-auto max-h-[160px] text-emerald-400 text-left">
+                                  {xmlPreview.substring(0, 500) + (xmlPreview.length > 500 ? '\n... [TRUNCATED FOR DISPLAY]' : '')}
+                                </pre>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* 2. Stock sync simulator */}
+                          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                            <span className="text-[10px] font-black tracking-widest text-indigo-650 uppercase block font-bold">Simulatore Sincronizzazione Magazzino</span>
+                            <h4 className="font-extrabold text-sm text-slate-900 uppercase">Invia Giacenze da Danea</h4>
+                            <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+                              Simula il caricamento simultaneo delle giacenze di magazzino inviato periodicamente da Easyfatt per allineare disponibilità e prezzi sul sito.
+                            </p>
+
+                            <div className="space-y-3">
+                              <label className="text-[9px] font-black text-slate-405 uppercase tracking-widest block font-sans">Simula XML Danea Giacenze</label>
+                              <textarea
+                                rows={3}
+                                value={simXmlProducts}
+                                onChange={(e) => setSimXmlProducts(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-2xl py-2 px-3 outline-none font-mono text-[11px] text-slate-800"
+                              />
+                              
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const res = await fetch(`/api/danea/products?apiKey=inkprint2026`, {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/xml' },
+                                      body: simXmlProducts
+                                    });
+                                    if (res.ok) {
+                                      const data = await res.json();
+                                      alert(`Successo!\n${data.message}`);
+                                    } else {
+                                      alert(`Errore di comunicazione: ${res.status}`);
+                                    }
+                                  } catch (e: any) {
+                                    alert(`Errore: ${e.message}`);
+                                  }
+                                }}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider py-2.5 px-5 rounded-2xl shadow-md transition-all active:scale-95 text-center block w-full sm:w-auto"
+                              >
+                                Invia &amp; Sincronizza Prodotti
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TAB CONTENT 2: PRESTASHOP WEBSERVICE */}
+                    {syncSubTab === "prestashop" && (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {/* Parameters configuration */}
+                        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
+                          <div>
+                            <span className="text-[9px] font-black tracking-widest text-indigo-500 uppercase block">Integrazione PrestaShop</span>
+                            <h4 className="font-extrabold text-sm text-slate-900 uppercase">Credenziali WebService API</h4>
+                            <p className="text-xs text-slate-500">Imposta i dati del Webservice attivo nel retroportale PrestaShop per permettere la sincronizzazione.</p>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-2xl">
+                              <div className="space-y-0.5">
+                                <span className="text-[10px] font-black uppercase text-slate-700">Stato Collegamento</span>
+                                <p className="text-[11px] text-slate-400">Attiva o disattiva il modulo gateway sincrono.</p>
+                              </div>
+                              <input 
+                                type="checkbox" 
+                                checked={psActive} 
+                                onChange={(e) => setPsActive(e.target.checked)}
+                                className="w-10 h-5 bg-slate-200 rounded-full appearance-none cursor-pointer checked:bg-indigo-600 relative after:content-[''] after:absolute after:h-4 after:w-4 after:bg-white after:rounded-full after:top-0.5 after:left-0.5 checked:after:translate-x-5 after:transition-all"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">URL Negozio PrestaShop</label>
+                              <input 
+                                type="url" 
+                                value={psUrl}
+                                onChange={(e) => setPsUrl(e.target.value)}
+                                placeholder="https://mio-prestashop.it/api"
+                                className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 rounded-2xl py-2.5 px-3.5 text-xs text-slate-800 outline-none font-semibold"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Chiave d'Accesso WebService (API Key)</label>
+                              <input 
+                                type="text" 
+                                value={psApiKey}
+                                onChange={(e) => setPsApiKey(e.target.value)}
+                                placeholder="PS_MOCKKEY12345"
+                                className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 rounded-2xl py-2.5 px-3.5 text-xs text-slate-800 outline-none font-mono"
+                              />
+                            </div>
+
+                            <div className="pt-2">
+                              <button
+                                onClick={handleSavePrestaShopConfig}
+                                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-wider py-3 rounded-2xl shadow-md transition-all active:scale-95"
+                              >
+                                Salva Credenziali PrestaShop
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Synchronization controls and logs */}
+                        <div className="space-y-6">
+                          <div className="bg-gradient-to-br from-indigo-50/40 to-slate-200/20 p-6 rounded-3xl border border-indigo-100 space-y-4">
+                            <span className="text-[10px] font-black tracking-widest text-indigo-700 uppercase block font-mono">Motore Sincronia Real-time</span>
+                            <h4 className="font-extrabold text-sm text-slate-900 uppercase">Azioni PrestaShop Predisposte</h4>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <button
+                                disabled={isPsSyncing}
+                                onClick={handleSyncPrestaShopProducts}
+                                className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 rounded-2xl p-4 text-left space-y-1 hover:border-indigo-300 transition-all shadow-sm"
+                              >
+                                <span className="font-black text-xs uppercase tracking-tight block">⬇ Scarica Catalogo</span>
+                                <span className="text-[10px] text-slate-400 font-medium block">Allinea prezzi, compatibilità e giacenze dei prodotti.</span>
+                                <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-bold block mt-2 text-center">Ultima: {psLastProducts || "Nessuna"}</span>
+                              </button>
+
+                              <button
+                                disabled={isPsSyncing}
+                                onClick={handleSyncPrestaShopOrders}
+                                className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 rounded-2xl p-4 text-left space-y-1 hover:border-indigo-300 transition-all shadow-sm"
+                              >
+                                <span className="font-black text-xs uppercase tracking-tight block">⬆ Esporta Ordini</span>
+                                <span className="text-[10px] text-slate-400 font-medium block">Invia le vendite della logistica per generare doc sul CMS.</span>
+                                <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-bold block mt-2 text-center">Ultima: {psLastOrders || "Nessuna"}</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Logging Console block */}
+                          <div className="bg-slate-950 rounded-3xl p-5 text-slate-300 border border-slate-800 font-mono text-[10px] space-y-2.5 shadow-xl max-h-[220px] overflow-y-auto">
+                            <div className="flex justify-between items-center text-[9px] font-black text-indigo-400 border-b border-slate-900 pb-1.5">
+                              <span>REGISTRO SINCRONIE PRESTASHOP</span>
+                              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                            </div>
+                            <div className="space-y-1">
+                              {psLogs.map((log, idx) => (
+                                <div key={idx} className="leading-relaxed hover:text-white">
+                                  <span className="text-slate-500">&gt;</span> {log}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TAB CONTENT 3: CATALOGO CSV IMPORT/EXPORT */}
+                    {syncSubTab === "csv" && (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {/* CSV Exporting panel */}
+                        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+                          <div>
+                            <span className="text-[9px] font-black tracking-widest text-slate-400 uppercase block font-mono">Moduli Esportazione Catalogo</span>
+                            <h4 className="font-extrabold text-sm text-slate-900 uppercase">Esporta Catalogo Prodotti CSV</h4>
+                            <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+                              Interroga ed esporta l'intero database di toner e cartucce in un file `.csv` editabile per fogli di calcolo (Excel, Numbers, LibreOffice).
+                            </p>
+                          </div>
+
+                          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 space-y-2">
+                            <div className="flex justify-between text-xs font-bold text-slate-700">
+                              <span>Numero Consumabili in Listino:</span>
+                              <span className="text-slate-900">12 Toner &amp; Cartucce</span>
+                            </div>
+                            <div className="flex justify-between text-xs font-bold text-slate-700">
+                              <span>Separatore standard file:</span>
+                              <span className="bg-white text-[10px] font-mono border px-1.5 py-0.5 rounded text-indigo-600">Virgola ( , )</span>
+                            </div>
+                          </div>
+
+                          <div className="pt-2">
+                            <a
+                              href="/api/products/export-csv"
+                              className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-wider py-3 px-6 rounded-2xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
+                            >
+                              <Download size={16} />
+                              Sblocca &amp; Esporta CSV Catalogo
+                            </a>
+                          </div>
+                        </div>
+
+                        {/* CSV Importing panel */}
+                        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-5">
+                          {/* File drop structure */}
+                          <div>
+                            <span className="text-[9px] font-black tracking-widest text-slate-405 uppercase block font-mono">Moduli Importazione Catalogo</span>
+                            <h4 className="font-extrabold text-sm text-slate-900 uppercase">Importa Prezzi &amp; Giacenze CSV</h4>
+                            <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+                              Allinea i prezzi e la disponibilità caricando un file CSV con intestazione <code className="bg-slate-100 font-mono text-[10px] px-1 rounded hover:bg-slate-200">sku,price,availability</code>.
+                            </p>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div className="border-2 border-dashed border-slate-200 rounded-3xl p-6 text-center hover:bg-slate-50/50 hover:border-indigo-400 transition-all cursor-pointer relative bg-slate-50/20">
+                              <input 
+                                type="file" 
+                                accept=".csv"
+                                onChange={handleCsvFileChanged}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              />
+                              <div className="space-y-2">
+                                <span className="text-3xl block">📋</span>
+                                <span className="text-xs font-black text-slate-800 uppercase tracking-wide block">Carica Listino CSV</span>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase">Trascina qui il file o clicca per esplorare</p>
+                              </div>
+                            </div>
+
+                            {/* CSV feedbacks and count progress */}
+                            {isCsvUploading && (
+                              <div className="flex items-center gap-2 mt-2 bg-indigo-50 border border-indigo-100 rounded-2xl p-3 text-indigo-700 text-xs font-bold leading-none uppercase">
+                                <span className="w-3 h-3 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
+                                Elaborazione e popolamento magazzino in corso...
+                              </div>
+                            )}
+
+                            {csvFeedback && (
+                              <div className={`p-4 rounded-2xl text-xs font-bold ${successCsvCount !== null ? "bg-green-50 border border-green-200 text-green-700" : "bg-rose-50 border border-rose-200 text-rose-700"}`}>
+                                {csvFeedback}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1644,6 +2593,216 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* --- HIGH-POLISHED INTERACTIVE PRINT SHEET MODAL DIALOG --- */}
+      <AnimatePresence>
+        {showPrintModal && (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex justify-center items-start overflow-y-auto p-4 sm:p-6" id="print-modal-container">
+            <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden my-6">
+              
+              {/* Modal Control Panel header */}
+              <div className="bg-slate-900 text-white p-4 flex justify-between items-center print:hidden border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-pulse"></span>
+                  <span className="text-xs font-black uppercase tracking-wider">Generatore Documenti professionali erogati</span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => window.print()}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5"
+                  >
+                    <Printer size={14} />🖨️ Stampa / Salva PDF
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setShowPrintModal(false);
+                      setShowDocType(null);
+                    }}
+                    className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-xl transition-all"
+                  >
+                    Chiudi Finestra
+                  </button>
+                </div>
+              </div>
+
+              {/* Printable target sheet container */}
+              <div className="p-8 md:p-12 bg-white text-slate-950 font-sans border border-slate-100 print:border-none print:shadow-none" id="printable-document-sheet">
+                
+                {/* Print Sheet styles overrides injection */}
+                <style dangerouslySetInnerHTML={{__html: `
+                  @media print {
+                    body * {
+                      visibility: hidden !important;
+                    }
+                    #printable-document-sheet, #printable-document-sheet * {
+                      visibility: visible !important;
+                    }
+                    #printable-document-sheet {
+                      position: absolute !important;
+                      left: 0 !important;
+                      top: 0 !important;
+                      width: 100% !important;
+                      margin: 0 !important;
+                      padding: 0 !important;
+                      border: none !important;
+                      box-shadow: none !important;
+                    }
+                    #print-modal-container {
+                      background: transparent !important;
+                      padding: 0 !important;
+                    }
+                  }
+                `}} />
+
+                {/* Letterhead section */}
+                <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6 mb-8">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-extrabold text-lg text-slate-900 tracking-tight">INK&amp;PRINT s.r.l.</span>
+                      <span className="text-[10px] border border-slate-950 font-medium px-1.5 py-0.2 rounded-md tracking-wider">LOGISTICA</span>
+                    </div>
+                    <div className="text-[10.5px] text-slate-500 font-semibold space-y-0.5 leading-snug">
+                      <p>Via Francesco Baracca 123 - 00148 Roma (RM)</p>
+                      <p>Telefono: +39 06 9876543 | Partiva IVA: IT09876543210</p>
+                      <p>E-mail: logistica@inkprintbydenise.com | Pec: pec@inkprint.it</p>
+                    </div>
+                  </div>
+
+                  <div className="text-right space-y-1.5 border-l-4 border-slate-900 pl-6 py-1">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block font-mono">Tipologia Pratica</span>
+                    <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight">
+                      {showDocType === "preventivo" && "PREVENTIVO DI CONSUMABILI"}
+                      {showDocType === "ddt" && "DOCUMENTO DI TRASPORTO (DDT)"}
+                      {showDocType === "conferma_ordine" && "CONFERMA D'ORDINE CLIENTE"}
+                    </h2>
+                    <p className="text-[11px] font-extrabold text-slate-800 font-mono">
+                      {showDocType === "preventivo" && `N°: ${quoteNumber}`}
+                      {showDocType === "ddt" && `N° DDT: DDT-2026-${selectedQuote?.id ? selectedQuote.id.substring(3, 8) : "105"}`}
+                      {showDocType === "conferma_ordine" && `N° ORD: CO-2026-${selectedQuote?.id ? selectedQuote.id.substring(3, 8) : "105"}`}
+                    </p>
+                    <p className="text-[10px] text-slate-500 font-bold">Data Erogazione: {new Date().toLocaleDateString('it-IT')}</p>
+                  </div>
+                </div>
+
+                {/* Sender & Receiver Address Details Block */}
+                <div className="grid grid-cols-2 gap-8 mb-8 text-[11.5px] leading-relaxed">
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-1">
+                    <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-widest block font-mono">Vettore Mittente / Speditore</span>
+                    <strong className="text-slate-950 uppercase font-black">Ink&amp;Print By Denise s.r.l.</strong>
+                    <p className="text-slate-550 font-medium">Ufficio Resi e Logistica B2B - Nodo Centrale di Sincronia</p>
+                    <p className="text-slate-550 font-medium">Dispositivo logistico convalidato PrestaShop / Danea Easyfatt</p>
+                  </div>
+
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-1.5">
+                    <span className="text-[8.5px] font-black text-indigo-600 uppercase tracking-widest block font-mono">Cliente Destinatario</span>
+                    <strong className="text-slate-950 uppercase font-black leading-none block">{selectedQuote?.company || qCompany || selectedQuote?.name || qName || "Privato / Consumatore"}</strong>
+                    {selectedQuote?.name && <p className="text-slate-650 font-semibold italic">Alla C.A: Dott. {selectedQuote.name}</p>}
+                    <div className="text-slate-600 font-bold space-y-0.2">
+                      {selectedQuote?.email && <p>E-mail: {selectedQuote.email}</p>}
+                      {selectedQuote?.phone && <p>Telefono: {selectedQuote.phone}</p>}
+                      {(selectedQuote?.vatId || qVatId) && <p>P. IVA / Cod. Fisc: {selectedQuote?.vatId || qVatId}</p>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* DDT Specific details block */}
+                {showDocType === "ddt" && (
+                  <div className="bg-slate-50 border border-slate-205 p-4 rounded-xl grid grid-cols-4 gap-4 text-[10.5px] mb-8 font-mono">
+                    <div>
+                      <span className="text-[8px] text-slate-400 uppercase font-sans font-black tracking-wider block">Causale Trasporto</span>
+                      <strong className="text-slate-900">Vendita</strong>
+                    </div>
+                    <div>
+                      <span className="text-[8px] text-slate-400 uppercase font-sans font-black tracking-wider block">Porto</span>
+                      <strong className="text-slate-900">Assegnato</strong>
+                    </div>
+                    <div>
+                      <span className="text-[8px] text-slate-400 uppercase font-sans font-black tracking-wider block">Aspetto Beni</span>
+                      <strong className="text-slate-900">Cartone compatibile</strong>
+                    </div>
+                    <div>
+                      <span className="text-[8px] text-slate-400 uppercase font-sans font-black tracking-wider block">Corriere Incaricato</span>
+                      <strong className="text-slate-900">{carrierVal || "SDA Express Courier"}</strong>
+                    </div>
+                  </div>
+                )}
+
+                {/* Items table layout */}
+                <div className="border border-slate-900 rounded-xl overflow-hidden mb-8">
+                  <table className="w-full text-left text-[11px] border-collapse">
+                    <thead>
+                      <tr className="bg-slate-900 text-white text-[9.5px] uppercase font-black tracking-wider font-mono">
+                        <th className="p-3 w-7/12">Consumabile Compatibile / Servizio Erogato</th>
+                        <th className="p-3 w-1.5/12 text-center">Quantità</th>
+                        <th className="p-3 w-2/12 text-right">Prezzo Unit. (€)</th>
+                        <th className="p-3 w-1.5/12 text-right">IVA (%)</th>
+                        <th className="p-3 w-2/12 text-right">Subtotale (€)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {quoteItems.map((item) => (
+                        <tr key={item.id} className="hover:bg-slate-50">
+                          <td className="p-3 font-semibold text-slate-900">{item.name}</td>
+                          <td className="p-3 text-center font-bold tracking-tight">{item.quantity}</td>
+                          <td className="p-3 text-right font-mono">€ {item.price.toFixed(2)}</td>
+                          <td className="p-3 text-right font-mono">22%</td>
+                          <td className="p-3 text-right font-mono font-bold">€ {(item.quantity * item.price).toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Economic summary or DDT signatures */}
+                {showDocType !== "ddt" ? (
+                  <div className="flex justify-between items-start gap-12 font-mono text-[11px]">
+                    <div className="flex-1 max-w-sm text-slate-500 bg-slate-50 p-4 rounded-xl border border-slate-100 leading-normal font-sans text-[10.5px]">
+                      <strong className="text-slate-800 block mb-1">Termini di Consegna &amp; Condizioni</strong>
+                      <p>{quoteReplyMsg || "Consegna gratuita ed espresso a cura dello speditore tramite corriere nazionale. Termini di validità preventivo commerciale: 30gg. I prezzi dei toner compatibili sono comprensivi di ecofuel."}</p>
+                    </div>
+
+                    <div className="w-68 space-y-2 border-t-2 border-slate-900 pt-3">
+                      <div className="flex justify-between text-slate-600">
+                        <span>Totale Imponibile:</span>
+                        <span>€ {quoteItems.reduce((acc, i) => acc + (i.quantity * i.price), 0).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-600 border-b border-dashed border-slate-200 pb-1.5">
+                        <span>Imposta (IVA 22%):</span>
+                        <span>€ {(quoteItems.reduce((acc, i) => acc + (i.quantity * i.price), 0) * 0.22).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-900 font-extrabold text-xs">
+                        <span>TOTALE COMPLESSIVO:</span>
+                        <span>€ {(quoteItems.reduce((acc, i) => acc + (i.quantity * i.price), 0) * 1.22).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-6 pt-16 text-[10px] text-center font-bold uppercase tracking-wider text-slate-600">
+                    <div className="border-t border-slate-400 pt-2 leading-relaxed">
+                      Firma Conducente
+                    </div>
+                    <div className="border-t border-slate-400 pt-2 leading-relaxed">
+                      Firma Mittente
+                    </div>
+                    <div className="border-t border-slate-400 pt-2 leading-relaxed">
+                      Firma per Ricevuta Destinatario
+                    </div>
+                  </div>
+                )}
+
+                {/* Document footer notice */}
+                <div className="mt-16 pt-6 border-t border-slate-200 text-center space-y-1">
+                  <p className="text-[9px] text-slate-400 font-black tracking-widest uppercase">Piattaforma Logistica Integrata Ink&amp;Print By Denise s.r.l.</p>
+                  <p className="text-[8px] text-slate-400 font-semibold">Documento generato telematicamente e sincronizzato con PrestaShop &amp; Easyfatt. Validità fiscale sancita in sede di allineamento magazzino.</p>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
+

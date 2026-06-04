@@ -47,6 +47,9 @@ export const ChiSiamo = ({ productCount }: { productCount?: number | null }) => 
               src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=800" 
               alt="Team at work" 
               className="rounded-3xl shadow-2xl h-[400px] w-full object-cover"
+              onError={(e) => {
+                e.currentTarget.src = "https://www.framatek.com/2270-thickbox_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg";
+              }}
             />
             <div className="absolute -bottom-6 -right-6 bg-blue-600 text-white p-8 rounded-3xl shadow-xl max-w-[240px]">
               <p className="text-2xl font-black mb-1">Affidabili.</p>
@@ -212,7 +215,7 @@ export const ProductCard = ({ product, onNavigate }: { product: Product, key?: R
       </div>
 
       {/* Image Area */}
-      <div className="relative aspect-video mb-3 overflow-hidden rounded-xl bg-slate-50 flex items-center justify-center p-0.5">
+      <div className="relative aspect-square mb-3 overflow-hidden rounded-xl bg-slate-50 flex items-center justify-center p-2">
         <ProductImage product={product} />
       </div>
 
@@ -312,6 +315,9 @@ export const Hero = ({ onNavigate, productCount }: { onNavigate: (page: string) 
               src="/src/assets/images/hero_ecommerce_supplies_1779955116676.png" 
               alt="Printer Supplies Premium" 
               className="w-full h-auto opacity-100 object-cover scale-100"
+              onError={(e) => {
+                e.currentTarget.src = "https://www.framatek.com/2270-thickbox_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg";
+              }}
             />
             {/* Soft overlay gradient */}
             <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/30 via-transparent to-transparent pointer-events-none" />

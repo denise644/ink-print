@@ -23,8 +23,6 @@ export const Navbar = ({ onSearch, onNavigate }: { onSearch: (val: string) => vo
             <span className="flex items-center gap-1"><Mail size={12} /> inkprint26@gmail.com</span>
           </div>
           <div className="flex gap-4 items-center">
-            <span onClick={() => onNavigate('ordini')} className="hover:text-blue-400 cursor-pointer transition-colors">Traccia Ordine</span>
-            <span className="text-slate-500 text-[10px]/none">|</span>
             <span onClick={() => onNavigate('admin')} className="hover:text-blue-400 cursor-pointer transition-colors flex items-center gap-1"><User size={12} /> Accesso Admin</span>
           </div>
         </div>
@@ -136,13 +134,12 @@ export const Navbar = ({ onSearch, onNavigate }: { onSearch: (val: string) => vo
                   { name: "Inkjet Originali", slug: "Cartucce Originali" },
                   { name: "Drum", slug: "Drum" },
                   { name: "Inchiostri Compatibili", slug: "Inchiostri Compatibili" },
-                  { name: "Traccia Ordine", slug: "ordini" },
                   { name: "Accesso Admin", slug: "admin" }
                 ].map((link) => (
                   <button 
                     key={link.name} 
                     onClick={() => {
-                      if (['home', 'catalog', 'ordini', 'admin'].includes(link.slug)) onNavigate(link.slug);
+                      if (['home', 'catalog', 'admin'].includes(link.slug)) onNavigate(link.slug);
                       else onNavigate('catalog', link.slug);
                       setIsMenuOpen(false);
                     }}
@@ -257,14 +254,6 @@ export const Footer = ({ onNavigate }: { onNavigate: (page: string, category?: s
                   className="hover:text-blue-400 hover:pl-1.5 cursor-pointer transition-all duration-205 flex items-center gap-1"
                 >
                   💳 Metodi di Pagamento Sicuri
-                </span>
-              </li>
-              <li>
-                <span 
-                  onClick={() => onNavigate('ordini')}
-                  className="hover:text-blue-400 hover:pl-1.5 cursor-pointer transition-all duration-205 flex items-center gap-1 text-emerald-400"
-                >
-                  🔍 Portale Tracking Ordini
                 </span>
               </li>
             </ul>

@@ -9,12 +9,7 @@
     "availability": true,
     "compatibility": ["BROTHER DCP L2531 DW", "DCP L2535 DW", "DCP L2550 DW", "HL L2395 DW", "MFC L2710 DW", "MFC L2713 DW", "MFC L2715 DW", "MFC L2716 DW", "MFC L2730 DW", "MFC L2750 DW", "MFC L2751 DW", "MFC L2770 DW", "MFC L2771 DW"],
     "description": "Toner compatibile ad alta resa Brother TN 2420. Qualità professionale certificata Ink&Print By Denise.",
-    "image": "https://www.framatek.com/2210-thickbox_default/toner-compatibile-brother-tn-2420-bk.jpg",
-    "images": [
-      "https://www.framatek.com/2210-thickbox_default/toner-compatibile-brother-tn-2420-bk.jpg",
-      "https://www.framatek.com/2209-thickbox_default/toner-compatibile-brother-tn-2420-bk.jpg",
-      "https://www.framatek.com/7912-thickbox_default/toner-compatibile-brother-tn-2420-bk.jpg"
-    ]
+    "image": "/src/assets/images/toner_compat_bk_premium_1779958984462.png"
   },
   {
     "id": "ep-t-603xl-bk",
@@ -26,7 +21,43 @@
     "availability": true,
     "compatibility": ["EPSON EXPRESSION HOME XP-2100", "XP-2105", "XP-3100", "XP-3105", "XP-4100", "XP-4105", "EPSON WORKFORCE WF-2810", "WF-2830", "WF-2835", "WF-2850", "WF-2870"],
     "description": "Cartuccia compatibile Epson Stella Marina 603XL. Alta capacità e colori brillanti.",
-    "image": "https://www.framatek.com/2271-thickbox_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg"
+    "image": "/src/assets/images/inkjet_compat_generic_template_1779959041117.png"
+  },
+  {
+    "id": "ep-t-603xl-c",
+    "sku": "T603XL-C",
+    "name": "Cartuccia compatibile Epson T 603 XL - C",
+    "category": "Cartucce Compatibili",
+    "brand": "Epson",
+    "price": 0.94,
+    "availability": true,
+    "compatibility": ["EPSON EXPRESSION HOME XP-2100", "XP-2105", "XP-3100", "XP-3105", "XP-4100", "XP-4105", "EPSON WORKFORCE WF-2810", "WF-2830", "WF-2835", "WF-2850", "WF-2870"],
+    "description": "Cartuccia compatibile Epson Stella Marina 603XL Ciano. Colori vivaci e massima definizione.",
+    "image": "/src/assets/images/inkjet_compat_generic_template_1779959041117.png"
+  },
+  {
+    "id": "ep-t-603xl-m",
+    "sku": "T603XL-M",
+    "name": "Cartuccia compatibile Epson T 603 XL - M",
+    "category": "Cartucce Compatibili",
+    "brand": "Epson",
+    "price": 0.94,
+    "availability": true,
+    "compatibility": ["EPSON EXPRESSION HOME XP-2100", "XP-2105", "XP-3100", "XP-3105", "XP-4100", "XP-4105", "EPSON WORKFORCE WF-2810", "WF-2830", "WF-2835", "WF-2850", "WF-2870"],
+    "description": "Cartuccia compatibile Epson Stella Marina 603XL Magenta. Altamente affidabile.",
+    "image": "/src/assets/images/inkjet_compat_generic_template_1779959041117.png"
+  },
+  {
+    "id": "ep-t-603xl-y",
+    "sku": "T603XL-Y",
+    "name": "Cartuccia compatibile Epson T 603 XL - Y",
+    "category": "Cartucce Compatibili",
+    "brand": "Epson",
+    "price": 0.94,
+    "availability": true,
+    "compatibility": ["EPSON EXPRESSION HOME XP-2100", "XP-2105", "XP-3100", "XP-3105", "XP-4100", "XP-4105", "EPSON WORKFORCE WF-2810", "WF-2830", "WF-2835", "WF-2850", "WF-2870"],
+    "description": "Cartuccia compatibile Epson Stella Marina 603XL Giallo. Stampe brillanti.",
+    "image": "/src/assets/images/inkjet_compat_generic_template_1779959041117.png"
   },
   {
     "id": "ep-t-1631-bk",
@@ -38,7 +69,7 @@
     "availability": true,
     "compatibility": ["EPSON WORKFORCE WF2010W", "WF2510WF", "WF2520NF", "WF2530WF", "WF2540WF", "WF2630WF", "WF2650DWF", "WF2660DWF", "WF2750DWF", "WF2760DWF"],
     "description": "Cartuccia compatibile Epson Penna stilografica 16XL. Qualità garantita.",
-    "image": "https://www.framatek.com/606-thickbox_default/cartuccia-compatibile-epson-t-1631-bk.jpg"
+    "image": "/src/assets/images/inkjet_compat_generic_template_1779959041117.png"
   },
   {
     "id": "br-tn-2310-bk",
@@ -50,12 +81,7 @@
     "availability": true,
     "compatibility": ["BROTHER HL L2300D", "HL 2340DW", "HL L2360DN", "HL L2365DW", "DCP L2500D", "DCP L2520DW", "DCP L2540DN", "MFC L2700DW", "MFC L2700DW L2720DW", "MFC 2740DW"],
     "description": "Toner nero compatibile Brother TN2320. Stampe nitide fino all'ultima pagina.",
-    "image": "https://www.framatek.com/229-thickbox_default/toner-compatibile-brother-tn-2310-2320-bk.jpg",
-    "images": [
-      "https://www.framatek.com/229-thickbox_default/toner-compatibile-brother-tn-2310-2320-bk.jpg",
-      "https://www.framatek.com/228-thickbox_default/toner-compatibile-brother-tn-2310-2320-bk.jpg",
-      "https://www.framatek.com/7910-thickbox_default/toner-compatibile-brother-tn-2310-2320-bk.jpg"
-    ]
+    "image": "/src/assets/images/toner_compat_bk_premium_1779958984462.png"
   },
   {
     "id": "sa-mlt-d116l-bk",
@@ -67,7 +93,7 @@
     "availability": true,
     "compatibility": ["SAMSUNG M2626", "M2626D", "M2826ND", "M2676N", "M2676FH", "M2876HN", "SLM2625D", "M2825DW", "M2826", "M2675", "M2875FD", "M2875FW", "2835DW", "M2885FW"],
     "description": "Toner ad alta resa MLT-D116L per stampanti Samsung Xpress.",
-    "image": "https://www.framatek.com/1894-thickbox_default/toner-compatibile-samsung-mlt-d116l-bk.jpg"
+    "image": "/src/assets/images/toner_compat_bk_premium_1779958984462.png"
   },
   {
     "id": "ep-t-711-bk",
@@ -79,7 +105,7 @@
     "availability": true,
     "compatibility": ["EPSON STYLUS PHOTO D78", "D120DX4000", "DX4050", "DX5000", "DX5050", "DX6000", "DX6050", "DX7450", "DX8450", "STYLUS D92", "DX4400", "DX4450", "DX7000F", "DX7400", "DX8400", "S20", "S21", "SX100", "SX105", "SX110", "SX115", "SX200", "SX205", "SX210", "SX215", "SX218", "SX400", "SX405", "SX410", "SX415", "SX510W", "SX515W", "SX610FW", "STYLUS OFFICE B40W", "BX300F", "BX310FN", "BX600FW", "BX610FW"],
     "description": "Cartuccia compatibile Epson T0711 Ghepardo. Massima affidabilità.",
-    "image": "https://www.framatek.com/574-thickbox_default/cartuccia-compatibile-epson-t-711-bk.jpg"
+    "image": "/src/assets/images/inkjet_compat_generic_template_1779959041117.png"
   },
   {
     "id": "sa-mlt-d111xl-bk",
@@ -87,11 +113,23 @@
     "name": "Toner compatibile Samsung MLT-D111XL - BK",
     "category": "Toner Compatibili",
     "brand": "Samsung",
-    "price": 8.15,
+    "price": 8.30,
     "availability": true,
     "compatibility": ["SAMSUNG XPRESS M2020", "M2020 W", "M2021", "M2021 W", "M2022", "M2022 W", "M2026", "M2026 W", "M2070", "M2070 F", "M2070 FW", "M2070", "M2070 W", "M2071 FH", "M2071 FW", "M2071 HW", "M2071 SERIES", "M2071 W", "M2078", "M2078 F", "M2078 FW", "M2078 SERIES", "M2078 W", "SL-M 2000 SERIES", "SL-M 2022", "SL-M 2022 W"],
     "description": "Toner XL MLT-D111XL per stampanti Samsung M2020/M2070.",
-    "image": "https://www.framatek.com/2242-thickbox_default/toner-compatibile-samsung-mlt-d111xl-bk.jpg"
+    "image": "/src/assets/images/toner_compat_bk_premium_1779958984462.png"
+  },
+  {
+    "id": "br-dr-1050-bk",
+    "sku": "DR1050-BK",
+    "name": "Drum compatibile Brother DR1050 - BK",
+    "category": "Drum",
+    "brand": "Brother",
+    "price": 7.30,
+    "availability": true,
+    "compatibility": ["BROTHER DCP1510", "DCP1512", "DCP1601", "DCP1610W", "DCP1612W", "DCP1616NW", "HL1110", "HL1112", "MFC1810", "MFC1910W"],
+    "description": "Gruppo tamburo di stampa compatibile Brother DR-1050. Resa di lunga durata.",
+    "image": "/src/assets/images/drum_unit_premium_template_1779959019359.png"
   },
   {
     "id": "br-dr-2400",
@@ -103,7 +141,31 @@
     "availability": true,
     "compatibility": ["BROTHER DCP-L2510D", "DCP-L2530DW", "DCP-L2550DN", "DCP-L2550DW", "HL-L2310D", "HL-L2350DW", "HL-L2370DN", "HL-L2375DW", "MFC-L2710DN", "MFC-L2710DW", "MFC-L2713DW", "MFC-L2730DW", "MFC-L2750DW"],
     "description": "Tamburo di stampa compatibile Brother DR2400. Durata garantita 12.000 pagine.",
-    "image": "https://www.framatek.com/2056-thickbox_default/drum-compatibile-brother-dr-2400-bk.jpg"
+    "image": "/src/assets/images/drum_unit_premium_template_1779959019359.png"
+  },
+  {
+    "id": "hp-301xl-bk",
+    "sku": "CH563EE",
+    "name": "Cartuccia compatibile HP 301 XL Nuova Versione - BK",
+    "category": "Cartucce Compatibili",
+    "brand": "HP",
+    "price": 16.10,
+    "availability": true,
+    "compatibility": ["HP DESKJET 1000", "1010", "1012", "1014", "1050", "1051", "1055", "1056", "1510", "1512", "1514", "2050", "2050A", "2054A", "2510", "2512", "2514", "2540", "2543", "2544", "2547", "2548", "2549", "3050", "3050A", "ENVY 4500 SERIES"],
+    "description": "Cartuccia Black rigenerata ad altissima capacità serie HP 301XL.",
+    "image": "/src/assets/images/inkjet_compat_generic_template_1779959041117.png"
+  },
+  {
+    "id": "br-tn-247-bk",
+    "sku": "TN247-BK",
+    "name": "Toner compatibile Brother TN247 - BK",
+    "category": "Toner Compatibili",
+    "brand": "Brother",
+    "price": 6.92,
+    "availability": true,
+    "compatibility": ["BROTHER HL-L3210CW", "HL-L3230CDW", "HL-L3270CDW", "DCP-L3510CDW", "DCP-L3550CDW", "MFC-L3710CW", "MFC-L3730CDN", "MFC-L3750CDW", "MFC-L3770CDW"],
+    "description": "Toner nero ad alta capacità compatibile Brother TN-247.",
+    "image": "/src/assets/images/toner_compat_bk_premium_1779958984462.png"
   },
   {
     "id": "hp-302xl-bk",
@@ -115,7 +177,19 @@
     "availability": true,
     "compatibility": ["HP DESKJET 1110", "2130", "3630", "ENVY 4520 E-ALL-IN-ONE", "OFFICEJET 3800 SERIES", "OFFICEJET 3832", "3830", "4650"],
     "description": "Cartuccia XL compatibile HP 302. Colore Nero profondo.",
-    "image": "https://www.framatek.com/792-thickbox_default/cartuccia-compatibile-hp-302-xl-f6u68ae-bk.jpg"
+    "image": "/src/assets/images/inkjet_compat_generic_template_1779959041117.png"
+  },
+  {
+    "id": "hp-302xl-cmy",
+    "sku": "F6U67AE",
+    "name": "Cartuccia compatibile HP 302 XL - Colori",
+    "category": "Cartucce Compatibili",
+    "brand": "HP",
+    "price": 17.25,
+    "availability": true,
+    "compatibility": ["HP DESKJET 1110", "2130", "3630", "HP ENVY 4520", "OFFICEJET 3830", "3832", "4650"],
+    "description": "Cartuccia XL compatibile tricolor HP 302 per stampe fotografiche eccellenti.",
+    "image": "/src/assets/images/inkjet_compat_generic_template_1779959041117.png"
   },
   {
     "id": "hp-415x-bk",
@@ -127,7 +201,7 @@
     "availability": true,
     "compatibility": ["HP COLOR LASERJET PRO M454DN", "M454DW", "MFP M479DW", "M479FDN", "M479FDW"],
     "description": "Toner ad altissima resa HP 415X Nero con chip aggiornato.",
-    "image": "https://www.framatek.com/7520-thickbox_default/toner-compatibile-hp-415x-w2030x-bk.jpg"
+    "image": "/src/assets/images/toner_compat_bk_premium_1779958984462.png"
   },
   {
     "id": "ca-pg-575xl",
@@ -139,7 +213,7 @@
     "availability": true,
     "compatibility": ["CANON PIXMA TR 4750 I", "CANON PIXMA TR 4751 I", "CANON PIXMA TS 3550 I", "CANON PIXMA TS 3551 I"],
     "description": "Cartuccia XL originale Canon PG-575. Massima qualità costruttiva.",
-    "image": "https://www.framatek.com/9161-thickbox_default/cartuccia-compatibile-canon-pg-575-xl-bk.jpg"
+    "image": "/src/assets/images/inkjet_orig_template_1_1779958716094.png"
   },
   {
     "id": "hp-59a-bk",
@@ -151,7 +225,7 @@
     "availability": true,
     "compatibility": ["HP LASERJET PRO M404N", "M404DN", "404DW", "HP LASERJET PRO MFP M428DW", "M428FDN", "M428FDW"],
     "description": "Toner originale HP 59A per stampe aziendali impeccabili.",
-    "image": "https://www.framatek.com/2287-thickbox_default/toner-compatibile-hp-59a-cf-259-a-bk.jpg"
+    "image": "/src/assets/images/toner_compat_bk_premium_1779958984462.png"
   },
   {
     "id": "inchiostro-ep-6641",
@@ -163,7 +237,7 @@
     "availability": true,
     "compatibility": ["EPSON L100", "L110", "L111", "L120", "130", "132", "200", "210", "220", "300", "301", "303", "305", "310", "312", "313", "350", "351", "353", "355", "358", "360", "362", "363", "365", "366", "455", "456", "550", "551", "555", "558", "565", "655", "1300"],
     "description": "Flacone inchiostro compatibile Epson serie 664 per Ecotank.",
-    "image": "https://www.framatek.com/2016-thickbox_default/inchiostro-compatibile-epson-6641-bk.jpg"
+    "image": "/src/assets/images/inkjet_compat_generic_template_1779959041117.png"
   },
   {
     "id": "inchiostro-normale-c",
@@ -175,6 +249,6 @@
     "availability": true,
     "compatibility": ["EPSON", "CANON", "HP", "LEXMARK"],
     "description": "Inchiostro Dye universale ciano di alta qualità per ricarica.",
-    "image": "https://www.framatek.com/2394-thickbox_default/inchiostro-compatibile-ciano-100ml-for-ecotank-l100l110l200l.jpg"
+    "image": "/src/assets/images/toner_compat_cmy_premium_1779959002014.png"
   }
 ]

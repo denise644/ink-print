@@ -23,65 +23,94 @@ export const getCategoryImageTemplates = (category: string, brand: string = '', 
   const brandLower = (brand || '').toLowerCase();
   const nameLower = (name || '').toLowerCase();
 
-  const isEpson = brandLower.includes('epson');
-  const isCanon = brandLower.includes('canon');
-  const isHP = brandLower.includes('hp');
-  const isBrother = brandLower.includes('brother');
   const isOriginal = catLower.includes('original');
 
-  // Robust color detection
-  const combined = `${nameLower} ${brandLower}`.toLowerCase();
-  const isCyan = combined.includes('cyan') || combined.includes('ciano') || combined.includes('azure') || combined.includes('azzurro') || combined.includes('-c') || combined.includes(' c ');
-  const isMagenta = combined.includes('magenta') || combined.includes('-m') || combined.includes(' m ');
-  const isYellow = combined.includes('yellow') || combined.includes('giallo') || combined.includes('-y') || combined.includes(' y ');
-  const isBlack = combined.includes('black') || combined.includes('nero') || combined.includes('bk') || combined.includes('-bk');
-
-  // NEW PREMIUM TEMPLATE ASSETS (User-requested clean style)
-  const PREMIUM_INJET_ORIG = [
-    "/src/assets/images/inkjet_orig_template_1_1779958716094.png",
-    "/src/assets/images/inkjet_orig_template_2_1779958733126.png",
-    "/src/assets/images/inkjet_orig_template_3_1779958749399.png",
-    "/src/assets/images/inkjet_orig_template_4_1779958767149.png"
+  const IMAGES_TONER_COMPATIBILI = [
+    "https://www.framatek.com/229-large_default/toner-compatibile-brother-tn-2310-2320-bk.jpg",
+    "https://www.framatek.com/1898-thickbox_default/toner-compatibile-samsung-mlt-d203e-bk.jpg",
+    "https://www.framatek.com/1932-large_default/toner-compatibile-samsung-ml1660-mlt-d1042s-bk.jpg",
+    "https://www.framatek.com/2229-thickbox_default/toner-compatibile-brother-tn-247-bk.jpg",
+    "https://www.framatek.com/231-thickbox_default/toner-compatibile-brother-tn-241-bk.jpg"
   ];
-  const PREMIUM_TONER_BK = "/src/assets/images/toner_compat_bk_premium_1779958984462.png";
-  const PREMIUM_TONER_CMY = "/src/assets/images/toner_compat_cmy_premium_1779959002014.png";
-  const PREMIUM_DRUM = "/src/assets/images/drum_unit_premium_template_1779959019359.png";
-  const PREMIUM_INKJET_COMPAT = "/src/assets/images/inkjet_compat_generic_template_1779959041117.png";
 
-  // 1. Inchiostri (Ink Refills)
+  const IMAGES_TONER_ORIGINALI = [
+    "https://www.framatek.com/toner-originali/toner-originale-ricoh-giallo-841926-mp-c2503y-9500-pagine",
+    "https://www.framatek.com/toner-originali/toner-nero-originale-laserjet-hp-142-a",
+    "https://www.framatek.com/12223-home_default/ricoh-mp-3554-bk-cartuccia-toner-originale-nero-842125.jpg",
+    "https://www.framatek.com/8392-home_default/toner-originalelexmark-b-2236-dw.jpg",
+    "https://www.framatek.com/8991-home_default/brother-tn2510xl-toner-originale-nero.jpg"
+  ];
+
+  const IMAGES_INKJET_COMPATIBILI = [
+    "https://www.framatek.com/2270-home_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg",
+    "https://www.framatek.com/573-home_default/cartuccia-compatibile-epson-t-711-bk.jpg",
+    "https://www.framatek.com/605-home_default/cartuccia-compatibile-epson-t-1631-bk.jpg",
+    "https://www.framatek.com/609-home_default/cartuccia-compatibile-epson-t-1633-m.jpg",
+    "https://www.framatek.com/inkjet-compatibili/cartuccia-compatibile-brother-lc-223-xl-bk"
+  ];
+
+  const IMAGES_INKJET_ORIGINALI = [
+    "https://www.framatek.com/357-home_default/cartuccia-originale-canon-cl-511-9ml-cmy-cl-511.jpg",
+    "https://www.framatek.com/356-home_default/cartuccia-originale-canon-cl-41-12ml-cmy-cl-41.jpg",
+    "https://www.framatek.com/364-home_default/cartuccia-originale-canon-pg-510-9ml-bk-pg-510.jpg",
+    "https://www.framatek.com/2321-home_default/cartuccia-originale-hp-300-xl-420pg-cmy-cc644ee.jpg",
+    "https://www.framatek.com/2318-home_default/cartuccia-originale-hp-300-200pg-bk-cc640ee.jpg"
+  ];
+
+  const IMAGES_DRUM = [
+    "https://www.framatek.com/10-home_default/drum-compatibile-brother-dr-230-bk.jpg",
+    "https://www.framatek.com/17-home_default/drum-compatibile-brother-dr-3100-dr3200-bk.jpg",
+    "https://www.framatek.com/14-home_default/drum-compatibile-brother-dr-3000-dr-570-bk.jpg",
+    "https://www.framatek.com/1340-home_default/drum-compatibile-oki-5600-5700-5800-5900-y.jpg"
+  ];
+
+  const IMAGES_INCHIOSTRI_COMPATIBILI = [
+    "https://www.framatek.com/inchiostri-compatibili/inchiostro-compatibile-giallo-epson-t-101-102-103-104-106",
+    "https://www.framatek.com/2017-home_default/inchiostro-compatibile-epson-6642-c.jpg",
+    "https://www.framatek.com/2372-home_default/inchiostro-compatibile-per-epson-magenta.jpg",
+    "https://www.framatek.com/2360-home_default/epson-100-100-ml-c-inchiostro-compatibile.jpg",
+    "https://www.framatek.com/2019-home_default/inchiostro-compatibile-epson-6643-m.jpg"
+  ];
+
+  // Derive simple seed to distribute logically
+  let hash = 0;
+  const str = brandLower + nameLower + category;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash);
+
+  // 1. Drum / Tamburi
+  if (catLower.includes('drum') || catLower.includes('tambur') || catLower.includes('gruppo')) {
+    return [IMAGES_DRUM[index % IMAGES_DRUM.length]];
+  }
+
+  // 2. Inchiostri (Ink Refills)
   if (catLower.includes('inchiostr') || catLower.includes('ink')) {
-    return [PREMIUM_INKJET_COMPAT];
+    return [IMAGES_INCHIOSTRI_COMPATIBILI[index % IMAGES_INCHIOSTRI_COMPATIBILI.length]];
   }
 
-  // 2. Inkjet Originali
+  // 3. Inkjet Originali (Cartucce Originali)
   if (isOriginal && (catLower.includes('cartucc') || catLower.includes('inkjet'))) {
-    const seed = (brandLower.length + nameLower.length) % PREMIUM_INJET_ORIG.length;
-    const rotated = [...PREMIUM_INJET_ORIG.slice(seed), ...PREMIUM_INJET_ORIG.slice(0, seed)];
-    return rotated;
+    return [IMAGES_INKJET_ORIGINALI[index % IMAGES_INKJET_ORIGINALI.length]];
   }
 
-  // 3. Inkjet Compatibili (Cartucce)
-  if (catLower.includes('cartucc') && (!isOriginal || catLower.includes('compatibil'))) {
-    return [PREMIUM_INKJET_COMPAT];
+  // 4. Inkjet Compatibili (Cartucce Compatibili)
+  if (catLower.includes('cartucc') || catLower.includes('inkjet')) {
+    return [IMAGES_INKJET_COMPATIBILI[index % IMAGES_INKJET_COMPATIBILI.length]];
+  }
+
+  // 5. Toner Originali
+  if (isOriginal && (catLower.includes('toner') || catLower.includes('laser'))) {
+    return [IMAGES_TONER_ORIGINALI[index % IMAGES_TONER_ORIGINALI.length]];
   }
   
-  // 4. Drum & Tamburi
-  if (catLower.includes('drum') || catLower.includes('tambur') || catLower.includes('gruppo')) {
-    return [PREMIUM_DRUM];
-  }
-
-  // 5. Toner & Laser (Compatibili e Originali)
+  // 6. Toner Compatibili
   if (catLower.includes('toner') || catLower.includes('laser')) {
-    if (isCyan || isMagenta || isYellow) return [PREMIUM_TONER_CMY];
-    return [PREMIUM_TONER_BK];
+    return [IMAGES_TONER_COMPATIBILI[index % IMAGES_TONER_COMPATIBILI.length]];
   }
 
-  // Generic Color Fallback based on name patterns
-  if (isCyan || isMagenta || isYellow) return [PREMIUM_TONER_CMY];
-  if (isBlack || combined.includes('nero')) return [PREMIUM_TONER_BK];
-
-  // Absolute Final Universal Backup (Professional Placeholder)
-  return [PREMIUM_TONER_BK];
+  return [IMAGES_TONER_COMPATIBILI[index % IMAGES_TONER_COMPATIBILI.length]];
 };
 
 // 2. Intelligent, product-first image gallery mapping based strictly on user requirement
@@ -95,6 +124,7 @@ export const getProductImageGallery = (product: {
   images?: string[];
 }) => {
   const primary = product.image || '';
+  const targetSecondImage = "https://www.framatek.com/2270-thickbox_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg";
   
   // Define what constitutes a "real" product image versus a generic placeholder
   const isGenericPlaceholder = !primary || 
@@ -105,14 +135,14 @@ export const getProductImageGallery = (product: {
 
   // If we have a real product image (e.g. from Framatek or specific upload), prioritize it
   if (!isGenericPlaceholder) {
-    const alt1 = (product.images && product.images[1]) ? product.images[1] : primary;
     const alt2 = (product.images && product.images[2]) ? product.images[2] : primary;
-    return [primary, alt1, alt2];
+    return [primary, targetSecondImage, alt2];
   }
   
   // Real backup fallback per category and brand context
   const fallback = getCategoryImageTemplates(product.category, product.brand, product.name);
-  return fallback.length > 0 ? fallback : ["/src/assets/images/toner_compat_bk_premium_1779958984462.png"];
+  const mainImage = fallback.length > 0 ? fallback[0] : "/src/assets/images/toner_compat_bk_premium_1779958984462.png";
+  return [mainImage, targetSecondImage, mainImage];
 };
 
 export const ProductImage: React.FC<ProductImageProps> = ({ 
@@ -207,10 +237,15 @@ export const ProductImage: React.FC<ProductImageProps> = ({
   const pageYield = React.useMemo(() => getPageYield(), [name, isToner, isDrum]);
 
   const [activeImage, setActiveImage] = useState<string>('');
+  const [isRetouched, setIsRetouched] = useState<boolean>(false);
+  const [isScanning, setIsScanning] = useState<boolean>(false);
 
-  const handleImageError = () => {
-    const templates = getCategoryImageTemplates(category, brand, name);
-    setActiveImage(templates[0]);
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const ultimateFallback = "https://www.framatek.com/2270-thickbox_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg";
+    if (activeImage !== ultimateFallback) {
+      setActiveImage(ultimateFallback);
+    }
+    e.currentTarget.src = ultimateFallback;
   };
 
   useEffect(() => {
@@ -221,8 +256,163 @@ export const ProductImage: React.FC<ProductImageProps> = ({
     setActiveImage(initialImg || "/src/assets/images/toner_compat_bk_premium_1779958984462.png");
   }, [product, viewIndex]);
 
+  useEffect(() => {
+    setIsScanning(true);
+    const t = setTimeout(() => setIsScanning(false), 1400);
+    return () => clearTimeout(t);
+  }, [activeImage, isRetouched]);
+
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData('text/plain', product.id);
+  };
+
+  const retouchStyle = `
+    @keyframes retouch-sweep {
+      0% { top: -10%; opacity: 0; }
+      15% { opacity: 1; }
+      85% { opacity: 1; }
+      100% { top: 110%; opacity: 0; }
+    }
+    @keyframes retouch-pulse {
+      0% { transform: scale(1); opacity: 0.98; }
+      50% { transform: scale(1.005); opacity: 1; }
+      100% { transform: scale(1); opacity: 0.98; }
+    }
+    .retouch-scanline {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 3.5px;
+      background: linear-gradient(90deg, transparent, #06b6d4, #22d3ee, #06b6d4, transparent);
+      box-shadow: 0 0 12px rgba(34, 211, 238, 0.85);
+      pointer-events: none;
+      z-index: 30;
+      animation: retouch-sweep 1.4s ease-in-out forwards;
+    }
+  `;
+
+  // Dynamic Content-Aware Mask Overlay for model/text/color removals
+  const renderRetouchOverlay = () => {
+    if (!isRetouched) return null;
+    
+    if (isToner) {
+      return (
+        <div 
+          className="absolute bg-gradient-to-b from-neutral-800 to-neutral-900 border border-neutral-750 rounded shadow-[inset_0_1px_3px_rgba(255,255,255,0.05),0_2px_8px_rgba(0,0,0,0.5)] z-20 transition-all duration-300"
+          style={{
+            left: '26%',
+            right: '26%',
+            top: '41%',
+            height: '18%',
+          }}
+        >
+          <div className="w-full h-full relative flex items-center justify-between px-3">
+            <div className="w-[80%] h-[1px] bg-neutral-700 rounded-full opacity-65" />
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              <span className={`w-1.5 h-1.5 rounded-full ${colorInfo.bg} shadow-sm`} />
+              <span className="text-[5px] font-bold font-mono tracking-wider text-neutral-400 uppercase">ULTRA CLEAN</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
+    if (isCartuccia) {
+      return (
+        <div 
+          className="absolute rounded-md border shadow-[inset_0_1px_4px_rgba(255,255,255,0.15),0_3px_10px_rgba(0,0,0,0.25)] z-20 transition-all duration-300 flex flex-col justify-between p-1.5 overflow-hidden"
+          style={{
+            left: '34%',
+            right: '34%',
+            top: '28%',
+            height: '42%',
+            backgroundColor: colorInfo.hex === '#0f172a' ? '#18181b' : colorInfo.hex,
+            borderColor: 'rgba(255,255,255,0.2)'
+          }}
+        >
+          <div className="w-full h-full flex flex-col justify-between text-center">
+            <div className="border-b border-white/10 pb-1 text-[5.5px] font-black text-white/50 tracking-wider font-sans uppercase">
+              RETOUCHED
+            </div>
+            <div className="flex-1 flex items-center justify-center">
+              <Printer size={10} className="text-white/40" />
+            </div>
+            <div className="text-[5px] font-mono text-white/60 font-bold uppercase tracking-widest mt-1">
+              {colorInfo.name.split(' / ')[0]}
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
+    if (isInchiostro) {
+      return (
+        <div 
+          className="absolute bg-white border border-slate-150 rounded shadow-md z-20 transition-all duration-300"
+          style={{
+            left: '28%',
+            right: '28%',
+            top: '35%',
+            height: '32%',
+          }}
+        >
+          <div className="w-full h-full flex flex-col items-center justify-center p-1">
+            <div className={`w-3 h-3 rounded-full ${colorInfo.bg} border border-slate-200 shadow-sm mb-1`} />
+            <span className="text-[5.5px] font-black text-slate-400 tracking-wider uppercase leading-none mb-0.5">Inkjet Refill</span>
+            <span className="text-[4.5px] font-bold text-slate-500 tracking-widest font-mono uppercase">DYE ACTIVE</span>
+          </div>
+        </div>
+      );
+    }
+    
+    if (isDrum) {
+      return (
+        <div 
+          className="absolute bg-neutral-900 border border-neutral-750 rounded shadow-lg z-20 transition-all duration-300"
+          style={{
+            left: '25%',
+            right: '25%',
+            top: '38%',
+            height: '16%',
+          }}
+        >
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="w-[85%] h-[1px] bg-neutral-700 rounded-full opacity-55" />
+          </div>
+        </div>
+      );
+    }
+    
+    return null;
+  };
+
+  const renderScanline = () => {
+    if (!isScanning) return null;
+    return <div className="retouch-scanline mb-0" />;
+  };
+
+  const renderBadgeButton = () => {
+    return (
+      <button 
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          setIsRetouched(!isRetouched);
+          setIsScanning(true);
+          setTimeout(() => setIsScanning(false), 1400);
+        }}
+        className={`absolute bottom-3 left-3 z-30 flex items-center gap-1 px-1.5 py-0.5 rounded text-[7px] font-black tracking-widest uppercase transition-all duration-200 border shadow-sm select-none ${
+          isRetouched 
+            ? 'bg-slate-900/90 text-teal-400 border-teal-500/20 hover:bg-slate-950' 
+            : 'bg-white/90 text-slate-500 border-slate-200 hover:bg-slate-50'
+        }`}
+        title="Clicca per mostrare/nascondere testi modificati"
+      >
+        <span className={`w-1 h-1 rounded-full ${isRetouched ? 'bg-teal-400 animate-pulse' : 'bg-slate-450'}`} />
+        <span>📸 {isRetouched ? 'PULIZIA ATTIVA' : 'SBLOCCA TESTI'}</span>
+      </button>
+    );
   };
 
   // ==========================================
@@ -234,6 +424,9 @@ export const ProductImage: React.FC<ProductImageProps> = ({
         className="relative w-full h-full flex flex-col items-center justify-center bg-white select-none overflow-hidden rounded-2xl border border-slate-100/40 shadow-inner p-4"
         id={`ai-product-clean-container-${product.id}`}
       >
+        <style dangerouslySetInnerHTML={{ __html: retouchStyle }} />
+        {renderScanline()}
+
         <div className="absolute top-3 left-3 flex items-center gap-1.5 z-10">
           <span className="w-2.5 h-2.5 rounded-full bg-slate-200" />
           <span className="text-[7.5px] font-black tracking-widest text-[#0f172a] font-sans uppercase">
@@ -256,7 +449,20 @@ export const ProductImage: React.FC<ProductImageProps> = ({
             referrerPolicy="no-referrer"
             loading="lazy"
           />
+          {renderRetouchOverlay()}
+
+          {/* COLOR MINI-DOT CLUSTER ON THE RIGHT OF THE PHOTO (hidden if black to avoid visual clutter) */}
+          {colorInfo.name !== 'NERO / BLACK' && (
+            <div className="absolute right-1 top-1/2 -translate-y-1/2 z-20 flex bg-white/95 backdrop-blur-xs p-1 rounded-full border border-slate-200/50 shadow-sm">
+              <span 
+                className={`w-3.5 h-3.5 rounded-full ${colorInfo.bg} border border-slate-350 shadow-xs shrink-0`} 
+                title={colorInfo.name}
+              />
+            </div>
+          )}
         </div>
+
+        {renderBadgeButton()}
 
         <div className="w-full border-t border-slate-100/60 pt-2 flex items-center justify-between mt-auto z-10 text-[6.5px] font-mono text-slate-400 uppercase font-semibold">
           <span>{brand.toUpperCase()} SELECTION</span>
@@ -406,6 +612,9 @@ export const ProductImage: React.FC<ProductImageProps> = ({
       className="relative w-full h-full flex flex-col items-center justify-center bg-white select-none overflow-hidden rounded-2xl border border-slate-100/40 shadow-inner p-4"
       id={`ai-product-main-presentation-${product.id}`}
     >
+      <style dangerouslySetInnerHTML={{ __html: retouchStyle }} />
+      {renderScanline()}
+
       {/* Decorative Blur Background Glows */}
       <div 
         className="absolute -right-12 -bottom-12 w-48 h-48 rounded-full blur-3xl opacity-10 pointer-events-none transition-colors duration-500"
@@ -443,9 +652,20 @@ export const ProductImage: React.FC<ProductImageProps> = ({
           referrerPolicy="no-referrer"
           loading="lazy"
         />
+        {renderRetouchOverlay()}
+
+        {/* COLOR MINI-DOT CLUSTER ON THE RIGHT OF THE PHOTO (hidden if black to avoid visual clutter) */}
+        {colorInfo.name !== 'NERO / BLACK' && (
+          <div className="absolute right-1 top-1/2 -translate-y-1/2 z-20 flex bg-white/95 backdrop-blur-xs p-1 rounded-full border border-slate-200/50 shadow-sm">
+            <span 
+              className={`w-3.5 h-3.5 rounded-full ${colorInfo.bg} border border-slate-350 shadow-xs shrink-0`} 
+              title={colorInfo.name}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Clean image showcase - no overlaid sticker boxes */}
+      {renderBadgeButton()}
 
       {/* Styled Footer */}
       <div className="w-full border-t border-slate-100/60 pt-2 flex items-center justify-between mt-auto z-10">
