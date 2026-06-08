@@ -27,6 +27,37 @@ interface Product {
 
 let products: Product[] = [];
 
+// Common Image Mapping Logic
+const IMAGES_TONER_COMPATIBILI = [
+  "https://www.framatek.com/229-large_default/toner-compatibile-brother-tn-2310-2320-bk.jpg",
+  "https://www.framatek.com/1898-thickbox_default/toner-compatibile-samsung-mlt-d203e-bk.jpg"
+];
+const IMAGES_INKJET_COMPATIBILI = [
+  "https://www.framatek.com/2270-home_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg"
+];
+const DRUM_IMAGE = "https://www.framatek.com/3932-thickbox_default/tamburo-compatibile-brother-dr-2400-bk.jpg";
+
+function assignProductImage(p: Product): Product {
+  const cat = (p.category || '').toLowerCase();
+  const name = (p.name || '').toLowerCase();
+  
+  const str = p.id || p.sku || p.name || '';
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  const index = Math.abs(hash);
+
+  let finalImg = IMAGES_TONER_COMPATIBILI[0];
+  if (cat.includes('cartucc') || cat.includes('inkjet') || cat.includes('inchiostr') || name.includes('inchiostro')) {
+    finalImg = IMAGES_INKJET_COMPATIBILI[index % IMAGES_INKJET_COMPATIBILI.length];
+  } else if (cat.includes('tambur') || cat.includes('drum') || name.includes('drum') || name.includes('tamburo')) {
+    finalImg = DRUM_IMAGE;
+  } else if (cat.includes('toner')) {
+    finalImg = IMAGES_TONER_COMPATIBILI[index % IMAGES_TONER_COMPATIBILI.length];
+  }
+
+  return { ...p, image: finalImg };
+}
+
 async function startServer() {
   console.log("[SERVER] Starting Ink&Print Backend...");
   
@@ -102,30 +133,7 @@ async function startServer() {
 
     // Image mapping
     console.log("[DATA] Applying image mapping...");
-    products = products.map(p => {
-      const cat = (p.category || '').toLowerCase();
-      const IMAGES_TONER_COMPATIBILI = [
-        "https://www.framatek.com/229-large_default/toner-compatibile-brother-tn-2310-2320-bk.jpg",
-        "https://www.framatek.com/1898-thickbox_default/toner-compatibile-samsung-mlt-d203e-bk.jpg"
-      ];
-      const IMAGES_INKJET_COMPATIBILI = [
-        "https://www.framatek.com/2270-home_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg"
-      ];
-      
-      const str = p.id || p.sku || p.name;
-      let hash = 0;
-      for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-      const index = Math.abs(hash);
-
-      let finalImg = IMAGES_TONER_COMPATIBILI[0];
-      if (cat.includes('cartucc') || cat.includes('inkjet')) {
-        finalImg = IMAGES_INKJET_COMPATIBILI[index % IMAGES_INKJET_COMPATIBILI.length];
-      } else if (cat.includes('toner')) {
-        finalImg = IMAGES_TONER_COMPATIBILI[index % IMAGES_TONER_COMPATIBILI.length];
-      }
-
-      return { ...p, image: finalImg };
-    });
+    products = products.map(assignProductImage);
     
     console.log(`[DATA] Catalog ready: ${products.length} items.`);
   } catch (err) {
@@ -1138,58 +1146,65 @@ async function startServer() {
         return res.status(400).json({ error: "Contenuto CSV non fornito nella richiesta" });
       }
 
-      const records = csvText.split('\n');
-      let updatedCount = 0;
-      let nonFoundSkus: string[] = [];
+      const records: any[] = parse(csvText, { 
+        columns: true, 
+        skip_empty_lines: true, 
+        trim: true,
+        relax_column_count: true 
+      });
       
-      if (records.length < 2) {
-        return res.status(400).json({ error: "Il file CSV deve contenere almeno una riga di intestazione ed una riga di dati." });
+      if (records.length === 0) {
+        return res.status(400).json({ error: "Il file CSV non contiene dati validi." });
       }
 
-      // Analyze header row
-      const headers = records[0].split(',').map((h: string) => h.trim().toLowerCase());
-      const skuIdx = headers.indexOf("sku");
-      const priceIdx = headers.indexOf("price");
-      const availIdx = headers.indexOf("availability");
+      let updatedCount = 0;
+      let newCount = 0;
+      
+      records.forEach(record => {
+        const sku = record.sku || record.SKU || record.codice;
+        if (!sku) return;
 
-      if (skuIdx === -1) {
-        return res.status(400).json({ error: "La colonna 'sku' è obbligatoria e deve essere presente nell'intestazione del CSV." });
-      }
+        const existingIdx = products.findIndex(p => p.sku.toLowerCase() === sku.toLowerCase());
+        
+        const newProduct: Product = {
+          id: record.id || record.ID || `import-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          sku: sku,
+          name: record.name || record.NAME || record.nome || "Nuovo Prodotto",
+          category: record.category || record.CATEGORY || record.categoria || "Senza Categoria",
+          brand: record.brand || record.BRAND || record.marca || "Generico",
+          price: parseFloat(record.price || record.PRICE || record.prezzo) || 0,
+          availability: record.availability === "1" || record.availability === "true" || record.compatibility === "disponibile",
+          compatibility: record.compatibility ? record.compatibility.split(';').map((s: string) => s.trim()) : [],
+          description: record.description || record.DESCRIPTION || record.descrizione || "",
+          image: "" // Will be assigned below
+        };
 
-      for (let i = 1; i < records.length; i++) {
-        const line = records[i].trim();
-        if (!line) continue;
+        const processedProduct = assignProductImage(newProduct);
 
-        const cols = line.split(',');
-        if (cols.length <= skuIdx) continue;
-
-        const sku = cols[skuIdx].replace(/"/g, '').trim();
-        const priceVal = priceIdx !== -1 && cols[priceIdx] ? parseFloat(cols[priceIdx].trim()) : null;
-        const availVal = availIdx !== -1 && cols[availIdx] ? cols[availIdx].trim() : null;
-
-        const prod = products.find(p => p.sku.toLowerCase() === sku.toLowerCase());
-        if (prod) {
-          if (priceVal !== null && !isNaN(priceVal)) {
-            prod.price = priceVal;
-          }
-          if (availVal !== null) {
-            prod.availability = (availVal === "1" || availVal.toLowerCase() === "true");
-          }
+        if (existingIdx !== -1) {
+          products[existingIdx] = { ...products[existingIdx], ...processedProduct };
           updatedCount++;
         } else {
-          nonFoundSkus.push(sku);
+          products.push(processedProduct);
+          newCount++;
         }
+      });
+
+      // Persist locally if possible (to src/data/products.csv for reload survival)
+      try {
+        const destPath = path.join(process.cwd(), "src/data/products.csv");
+        fs.writeFileSync(destPath, csvText, "utf8");
+      } catch (saveErr) {
+        console.warn("Could not persist CSV to filesystem:", saveErr);
       }
 
-      res.json({
-        success: true,
-        message: `Importazione CSV elaborata. ${updatedCount} prodotti aggiornati in magazzino.`,
-        updatedCount,
-        nonFoundCount: nonFoundSkus.length,
-        nonFoundSkus: nonFoundSkus.slice(0, 10)
+      res.json({ 
+        success: true, 
+        message: `Importazione CSV completata. ${newCount} nuovi prodotti aggiunti, ${updatedCount} aggiornati.`,
+        updatedCount: newCount + updatedCount
       });
     } catch (e: any) {
-      console.error(e);
+      console.error("CSV Import Error:", e);
       res.status(500).json({ error: "Errore durante l'importazione del CSV: " + e.message });
     }
   });
