@@ -26,6 +26,7 @@ interface Product {
 }
 
 let products: Product[] = [];
+let productImagesMap: Record<string, string> = {};
 
 // Common Image Mapping Logic
 const IMAGES_TONER_COMPATIBILI = [
@@ -38,6 +39,13 @@ const IMAGES_INKJET_COMPATIBILI = [
 const DRUM_IMAGE = "https://www.framatek.com/3932-thickbox_default/tamburo-compatibile-brother-dr-2400-bk.jpg";
 
 function assignProductImage(p: Product): Product {
+  const skuKey = p.sku.toLowerCase();
+  
+  // 1. Check for manual override from CSV mapping
+  if (productImagesMap[skuKey]) {
+    return { ...p, image: productImagesMap[skuKey] };
+  }
+
   const cat = (p.category || '').toLowerCase();
   const name = (p.name || '').toLowerCase();
   
@@ -83,33 +91,51 @@ async function startServer() {
     // Expand products
     let realProducts: Product[] = Array.isArray(productsData) ? [...productsData] : [];
     products = [...realProducts];
-    const targetCount = 1536;
+
+    // Load custom image mappings if they exist
+    const mappingsPath = path.join(process.cwd(), "src/data/image_mappings.json");
+    if (fs.existsSync(mappingsPath)) {
+      try {
+        productImagesMap = JSON.parse(fs.readFileSync(mappingsPath, "utf8"));
+        console.log(`[DATA] Loaded ${Object.keys(productImagesMap).length} custom image mappings.`);
+      } catch (e) {
+        console.error("Error loading image mappings:", e);
+      }
+    }
+    
+    // Set target to 527 as requested by the user
+    const targetCount = 527;
 
     if (products.length < targetCount && realProducts.length > 0) {
-      console.log(`[DATA] Expanding catalog to ${targetCount} items...`);
+      console.log(`[DATA] Expanding catalog from ${products.length} to ${targetCount} items...`);
       const realBrands = Array.from(new Set(realProducts.map(p => p.brand)));
       const realCategories = Array.from(new Set(realProducts.map(p => p.category)));
       
+      const tonerModels = ["TN-2320", "TN-2420", "TN-247", "CE285A", "CF217A", "MLT-D111S", "MLT-D116L", "Q2612A"];
+      const inkModels = ["603XL", "301XL", "302XL", "304XL", "305XL", "T1281", "T1291", "PGI-550", "CLI-551"];
+      
       for (let i = products.length; i < targetCount; i++) {
         const base = realProducts[i % realProducts.length];
-        if (!base) continue;
-        
         const brand = realBrands[i % realBrands.length] || "Generico";
         const cat = realCategories[i % realCategories.length] || "Consumabili";
         
+        const isToner = cat.toLowerCase().includes('toner');
+        const modelList = isToner ? tonerModels : inkModels;
+        const model = modelList[i % modelList.length];
+        
         const isOriginal = cat.includes('Originali');
-        const genName = `${cat.split(' ')[0]} ${isOriginal ? 'Originale' : 'Compatibile'} ${brand} Serie ${base.name.split(' ').pop() || 'Pro'} #${i}`;
+        const genName = `${cat.split(' ')[0]} ${isOriginal ? 'Originale' : 'Compatibile'} ${brand} Modello ${model} #${i}`;
         
         products.push({
           id: `gen-${i}`,
-          sku: `${brand.slice(0, 2).toUpperCase()}-${base.sku.split('-')[0]}-${i}`,
+          sku: `${brand.slice(0, 2).toUpperCase()}-${model}-${1000 + i}`,
           name: genName,
           category: cat,
           brand: brand,
-          price: Number((Math.random() * (45 - 5) + 5).toFixed(2)),
-          availability: Math.random() > 0.1,
-          compatibility: [`${brand} OfficeJet ${i % 100}`, `${brand} LaserJet Pro ${i % 200}`, `${brand} PIXMA ${i % 50}`],
-          description: `Prodotto professionale di alta qualità per la tua stampante ${brand}. Garanzia Ink&Print By Denise.`,
+          price: Number((Math.random() * (35 - 8) + 8).toFixed(2)),
+          availability: Math.random() > 0.15,
+          compatibility: [`${brand} Series ${i % 100}`, `${brand} Professional ${i % 50}`, `${brand} SmartPrint ${i % 200}`],
+          description: `Consumabile professionale per stampanti ${brand}. Qualità garantita Ink&Print By Denise. Massima resa cromatica e affidabilità testata.`,
           image: ""
         });
       }
@@ -1206,6 +1232,50 @@ async function startServer() {
     } catch (e: any) {
       console.error("CSV Import Error:", e);
       res.status(500).json({ error: "Errore durante l'importazione del CSV: " + e.message });
+    }
+  });
+
+  app.post("/api/products/import-images-csv", (req, res) => {
+    try {
+      const { csvText } = req.body;
+      if (!csvText) {
+        return res.status(400).json({ error: "Contenuto CSV immagini non fornito" });
+      }
+
+      const records: any[] = parse(csvText, { 
+        columns: true, 
+        skip_empty_lines: true, 
+        trim: true,
+        relax_column_count: true 
+      });
+
+      let mappedCount = 0;
+      records.forEach(record => {
+        const sku = (record.sku || record.SKU || record.codice || "").toLowerCase();
+        const imageUrl = record.image || record.IMAGE || record.url || record.immagine;
+        
+        if (sku && imageUrl) {
+          productImagesMap[sku] = imageUrl;
+          mappedCount++;
+          
+          // Apply immediately to current catalog
+          const prod = products.find(p => p.sku.toLowerCase() === sku);
+          if (prod) prod.image = imageUrl;
+        }
+      });
+
+      // Persist to file
+      const mappingsPath = path.join(process.cwd(), "src/data/image_mappings.json");
+      fs.writeFileSync(mappingsPath, JSON.stringify(productImagesMap, null, 2), "utf8");
+
+      res.json({ 
+        success: true, 
+        message: `Mappatura immagini completata. ${mappedCount} SKU collegati ad immagini personalizzate.`,
+        mappedCount 
+      });
+    } catch (e: any) {
+      console.error("Image Import Error:", e);
+      res.status(500).json({ error: "Errore importazione immagini: " + e.message });
     }
   });
 

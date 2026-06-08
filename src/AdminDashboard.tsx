@@ -138,6 +138,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
   const [successCsvCount, setSuccessCsvCount] = useState<number | null>(null);
   const [syncSubTab, setSyncSubTab] = useState<"danea" | "prestashop" | "csv">("danea");
 
+  // Image Mapping CSV states
+  const [imageCsvFeedback, setImageCsvFeedback] = useState("");
+  const [isImageCsvUploading, setIsImageCsvUploading] = useState(false);
+  const [successImageCount, setSuccessImageCount] = useState<number | null>(null);
+
   // Pre-deploy physical audit checklist states
   const [checkedHosting, setCheckedHosting] = useState(false);
   const [checkedPrestashop, setCheckedPrestashop] = useState(false);
@@ -406,6 +411,56 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
         setCsvFeedback(`× Errore connessione: ${error.message}`);
       } finally {
         setIsCsvUploading(false);
+      }
+    };
+    
+    reader.readAsText(file);
+  };
+
+  const handleImageCsvFileChanged = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsImageCsvUploading(true);
+    setImageCsvFeedback("");
+    setSuccessImageCount(null);
+    
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      if (!text) {
+        setImageCsvFeedback("× Impossibile leggere il file CSV.");
+        setIsImageCsvUploading(false);
+        return;
+      }
+      
+      try {
+        const res = await fetch("/api/products/import-images-csv", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ csvText: text })
+        });
+        
+        if (res.ok) {
+          const d = await res.json();
+          if (d.success) {
+            setSuccessImageCount(d.mappedCount);
+            setImageCsvFeedback(`✓ Mappatura Immagini completata! Collegati ${d.mappedCount} prodotti.`);
+            setPsLogs(prev => [
+              `[${new Date().toLocaleString('it-IT')}] Importazione Immagini CSV: Allineate ${d.mappedCount} immagini.`,
+              ...prev
+            ]);
+          } else {
+            setImageCsvFeedback(`× Errore nell'elaborazione: ${d.error || "Formato non idoneo"}`);
+          }
+        } else {
+          const errorData = await res.json();
+          setImageCsvFeedback(`× Errore server: ${errorData.error || "Impossibile allineare i dati"}`);
+        }
+      } catch (error: any) {
+        setImageCsvFeedback(`× Errore connessione: ${error.message}`);
+      } finally {
+        setIsImageCsvUploading(false);
       }
     };
     
@@ -2545,17 +2600,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
                         </div>
 
                         {/* CSV Importing panel */}
-                        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-5">
-                          {/* File drop structure */}
-                          <div>
-                            <span className="text-[9px] font-black tracking-widest text-slate-405 uppercase block font-mono">Moduli Importazione Catalogo</span>
-                            <h4 className="font-extrabold text-sm text-slate-900 uppercase">Importa Prezzi &amp; Giacenze CSV</h4>
-                            <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                              Allinea i prezzi e la disponibilità caricando un file CSV con intestazione <code className="bg-slate-100 font-mono text-[10px] px-1 rounded hover:bg-slate-200">sku,price,availability</code>.
-                            </p>
-                          </div>
-
+                        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
+                          {/* Part 1: Product Data */}
                           <div className="space-y-4">
+                            <div>
+                              <h4 className="font-extrabold text-sm text-slate-900 uppercase">1. Importa Prezzi &amp; Giacenze CSV</h4>
+                              <p className="text-[11px] text-slate-500 leading-relaxed font-semibold">
+                                Allinea i prezzi e la disponibilità caricando un file CSV con intestazione <code className="bg-slate-100 font-mono text-[10px] px-1 rounded hover:bg-slate-200">sku,price,availability</code>.
+                              </p>
+                            </div>
+
                             <div className="border-2 border-dashed border-slate-200 rounded-3xl p-6 text-center hover:bg-slate-50/50 hover:border-indigo-400 transition-all cursor-pointer relative bg-slate-50/20">
                               <input 
                                 type="file" 
@@ -2564,23 +2618,61 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                               />
                               <div className="space-y-2">
-                                <span className="text-3xl block">📋</span>
-                                <span className="text-xs font-black text-slate-800 uppercase tracking-wide block">Carica Listino CSV</span>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase">Trascina qui il file o clicca per esplorare</p>
+                                <span className="text-2xl block">📋</span>
+                                <span className="text-[11px] font-black text-slate-800 uppercase tracking-wide block">Carica Listino Prodotti</span>
+                                <p className="text-[9px] text-slate-400 font-bold uppercase">Trascina qui il file o clicca per esplorare</p>
                               </div>
                             </div>
 
-                            {/* CSV feedbacks and count progress */}
                             {isCsvUploading && (
-                              <div className="flex items-center gap-2 mt-2 bg-indigo-50 border border-indigo-100 rounded-2xl p-3 text-indigo-700 text-xs font-bold leading-none uppercase">
+                              <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-2xl p-3 text-indigo-700 text-[10px] font-bold uppercase">
                                 <span className="w-3 h-3 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
-                                Elaborazione e popolamento magazzino in corso...
+                                Elaborazione magazzino...
                               </div>
                             )}
 
                             {csvFeedback && (
-                              <div className={`p-4 rounded-2xl text-xs font-bold ${successCsvCount !== null ? "bg-green-50 border border-green-200 text-green-700" : "bg-rose-50 border border-rose-200 text-rose-700"}`}>
+                              <div className={`p-3 rounded-2xl text-[10px] font-bold ${successCsvCount !== null ? "bg-green-50 border border-green-200 text-green-700" : "bg-rose-50 border border-rose-200 text-rose-700"}`}>
                                 {csvFeedback}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="h-px bg-slate-100"></div>
+
+                          {/* Part 2: Image Mappings */}
+                          <div className="space-y-4">
+                            <div>
+                              <h4 className="font-extrabold text-sm text-slate-900 uppercase">2. Carica Mappatura Immagini</h4>
+                              <p className="text-[11px] text-slate-500 leading-relaxed font-semibold">
+                                Collega immagini ad alta risoluzione agli SKU caricando un CSV con intestazione <code className="bg-slate-100 font-mono text-[10px] px-1 rounded hover:bg-slate-200">sku,image</code>.
+                              </p>
+                            </div>
+
+                            <div className="border-2 border-dashed border-slate-200 rounded-3xl p-6 text-center hover:bg-slate-50/50 hover:border-blue-400 transition-all cursor-pointer relative bg-slate-50/20">
+                              <input 
+                                type="file" 
+                                accept=".csv"
+                                onChange={handleImageCsvFileChanged}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              />
+                              <div className="space-y-2">
+                                <span className="text-2xl block">🖼️</span>
+                                <span className="text-[11px] font-black text-slate-800 uppercase tracking-wide block">Carica Mappatura Foto</span>
+                                <p className="text-[9px] text-slate-400 font-bold uppercase">Allinea le immagini dei toner per SKU</p>
+                              </div>
+                            </div>
+
+                            {isImageCsvUploading && (
+                              <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-2xl p-3 text-blue-700 text-[10px] font-bold uppercase">
+                                <span className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
+                                Elaborazione immagini...
+                              </div>
+                            )}
+
+                            {imageCsvFeedback && (
+                              <div className={`p-3 rounded-2xl text-[10px] font-bold ${successImageCount !== null ? "bg-green-50 border border-green-200 text-green-700" : "bg-rose-50 border border-rose-200 text-rose-700"}`}>
+                                {imageCsvFeedback}
                               </div>
                             )}
                           </div>
