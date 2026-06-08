@@ -9,7 +9,18 @@ import { parse } from "csv-parse/sync";
 import { GoogleGenAI } from "@google/genai";
 // Supabase import removed - disconnected
 
-import productsData from "./src/data/products.json";
+let productsData: Product[] = [];
+try {
+  const productsPath = path.join(process.cwd(), "src/data/products.json");
+  if (fs.existsSync(productsPath)) {
+    productsData = JSON.parse(fs.readFileSync(productsPath, "utf8"));
+    console.log(`Successfully loaded ${productsData.length} products from products.json`);
+  } else {
+    console.warn("products.json not found at", productsPath);
+  }
+} catch (e) {
+  console.error("Failed to load products.json:", e);
+}
 
 interface Product {
   id: string;
@@ -154,21 +165,23 @@ async function getSupabaseProducts(): Promise<Product[]> {
 }
 
 // Data loaded from processed document
-let realProducts: Product[] = [...(productsData as Product[])];
+let realProducts: Product[] = Array.isArray(productsData) ? [...(productsData as Product[])] : [];
 
 // Expand to exactly 1536 prodotti as observed
 let products: Product[] = [...realProducts];
 const targetCount = 1536;
 
-if (products.length < targetCount) {
+if (products.length < targetCount && realProducts.length > 0) {
   // Extract real metadata for better generation
   const realBrands = Array.from(new Set(realProducts.map(p => p.brand)));
   const realCategories = Array.from(new Set(realProducts.map(p => p.category)));
   
   for (let i = products.length; i < targetCount; i++) {
     const base = realProducts[i % realProducts.length];
-    const brand = realBrands[i % realBrands.length];
-    const cat = realCategories[i % realCategories.length];
+    if (!base) continue;
+    
+    const brand = realBrands[i % realBrands.length] || "Generico";
+    const cat = realCategories[i % realCategories.length] || "Consumabili";
     
     // Generate logical permutations
     const isOriginal = cat.includes('Originali');
@@ -185,6 +198,23 @@ if (products.length < targetCount) {
       compatibility: [`${brand} OfficeJet ${i % 100}`, `${brand} LaserJet Pro ${i % 200}`, `${brand} PIXMA ${i % 50}`],
       description: `Prodotto professionale di alta qualità per la tua stampante ${brand}. Garanzia Ink&Print By Denise.`,
       image: "" // Will be mapped to high-fidelity template below
+    });
+  }
+} else if (products.length === 0) {
+  console.warn("No products found in data source. Generating emergency fallback data.");
+  // Emergency fallback if products.json is missing or empty
+  for (let i = 0; i < 20; i++) {
+    products.push({
+      id: `fallback-${i}`,
+      sku: `FB-${i}`,
+      name: `Toner Compatibile Serie Fallback #${i}`,
+      category: "Toner Compatibili",
+      brand: "Generico",
+      price: 9.99,
+      availability: true,
+      compatibility: ["Stampante Universale"],
+      description: "Dati di emergenza caricati a causa di un errore nel database locale.",
+      image: ""
     });
   }
 }
@@ -296,6 +326,16 @@ async function startServer() {
 
   app.use(express.json({ limit: '10mb' }));
 
+  // Health check endpoint
+  app.get("/api/health", (req, res) => {
+    res.json({ 
+      status: "ok", 
+      message: "Ink&Print Server is active",
+      productCount: products.length,
+      env: process.env.NODE_ENV
+    });
+  });
+
   let aiClient: GoogleGenAI | null = null;
   const getGoogleGenAI = (): GoogleGenAI => {
     if (!aiClient) {
@@ -349,35 +389,42 @@ async function startServer() {
   });
 
   app.get("/api/products", async (req, res) => {
-    const sourceProducts = [...products];
+    try {
+      console.log(`[GET] /api/products - Query:`, req.query);
+      const sourceProducts = [...products];
 
-    let filtered = [...sourceProducts];
-    const { category, brand, search, sort, minPrice, maxPrice } = req.query;
+      let filtered = [...sourceProducts];
+      const { category, brand, search, sort, minPrice, maxPrice } = req.query;
 
-    if (category && category !== 'All') filtered = filtered.filter(p => p.category === category);
-    if (brand && brand !== 'All') filtered = filtered.filter(p => p.brand === brand);
-    if (minPrice) filtered = filtered.filter(p => p.price >= Number(minPrice));
-    if (maxPrice) filtered = filtered.filter(p => p.price <= Number(maxPrice));
-    
-    if (search) {
-      const s = String(search).toLowerCase();
-      filtered = filtered.filter(p => 
-        p.name.toLowerCase().includes(s) || 
-        p.sku.toLowerCase().includes(s) || 
-        p.brand.toLowerCase().includes(s) ||
-        p.category.toLowerCase().includes(s) ||
-        p.compatibility.some(c => c.toLowerCase().includes(s)) ||
-        p.description.toLowerCase().includes(s)
-      );
+      if (category && category !== 'All' && category !== '') filtered = filtered.filter(p => p.category === category);
+      if (brand && brand !== 'All' && brand !== '') filtered = filtered.filter(p => p.brand === brand);
+      if (minPrice) filtered = filtered.filter(p => p.price >= Number(minPrice));
+      if (maxPrice) filtered = filtered.filter(p => p.price <= Number(maxPrice));
+      
+      if (search) {
+        const s = String(search).toLowerCase();
+        filtered = filtered.filter(p => 
+          p.name.toLowerCase().includes(s) || 
+          p.sku.toLowerCase().includes(s) || 
+          p.brand.toLowerCase().includes(s) ||
+          p.category.toLowerCase().includes(s) ||
+          p.compatibility.some(c => c.toLowerCase().includes(s)) ||
+          p.description.toLowerCase().includes(s)
+        );
+      }
+
+      // Sort Logic
+      if (sort === 'price-asc') filtered.sort((a, b) => a.price - b.price);
+      else if (sort === 'price-desc') filtered.sort((a, b) => b.price - a.price);
+      else if (sort === 'brand') filtered.sort((a, b) => a.brand.localeCompare(b.brand));
+      else if (sort === 'name') filtered.sort((a, b) => a.name.localeCompare(b.name));
+
+      console.log(`[GET] /api/products - Returning ${filtered.length} products`);
+      res.json(filtered);
+    } catch (e: any) {
+      console.error("Error in /api/products:", e);
+      res.status(500).json({ error: "Errore interno caricamento prodotti", details: e.message });
     }
-
-    // Sort Logic
-    if (sort === 'price-asc') filtered.sort((a, b) => a.price - b.price);
-    else if (sort === 'price-desc') filtered.sort((a, b) => b.price - a.price);
-    else if (sort === 'brand') filtered.sort((a, b) => a.brand.localeCompare(b.brand));
-    else if (sort === 'name') filtered.sort((a, b) => a.name.localeCompare(b.name));
-
-    res.json(filtered);
   });
 
   app.get("/api/categories", async (req, res) => {
