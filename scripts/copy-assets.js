@@ -19,7 +19,7 @@ async function copyDir(src, dest) {
 
 async function main() {
   const src = 'src/assets/images';
-  const dest = 'public/src/assets/images';
+  const dest = 'public/assets/images';
 
   try {
     const srcExists = await fs.stat(src).then(() => true).catch(() => false);

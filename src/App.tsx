@@ -28,6 +28,37 @@ import { useEffect } from 'react';
 import { Laptop, Wifi, Shield, Smartphone, PenTool, Headphones, ShoppingCart, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
+const RotatingImage = ({ images, title }: { images: string[], title: string }) => {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (images.length <= 1) return;
+    const interval = setInterval(() => {
+      setIndex((prev) => (prev + 1) % images.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [images.length]);
+
+  return (
+    <AnimatePresence mode="wait">
+      <motion.img 
+        key={images[index]}
+        src={images[index]} 
+        alt={title} 
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 1.1 }}
+        transition={{ duration: 0.8 }}
+        className="w-full h-full object-contain mix-blend-multiply" 
+        referrerPolicy="no-referrer" 
+        onError={(e) => {
+          e.currentTarget.src = "https://www.framatek.com/2270-thickbox_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg";
+        }}
+      />
+    </AnimatePresence>
+  );
+};
+
 const HomePage = ({ onNavigate, productCount }: { onNavigate: (page: string, data?: any) => void, productCount: number | null }) => {
   return (
     <div>
@@ -52,10 +83,43 @@ const HomePage = ({ onNavigate, productCount }: { onNavigate: (page: string, dat
           
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
             {[
-              { icon: null, image: "/src/assets/images/toner_compat_cmy_premium_1779959002014.png", title: "Toner", desc: "Compatibili e Originali", color: "bg-blue-100 text-blue-600", slug: "Toner Compatibili" },
-              { icon: null, image: "/src/assets/images/inkjet_compat_generic_template_1779959041117.png", title: "Inkjet", desc: "Qualità Garantita", color: "bg-indigo-100 text-indigo-600", slug: "Cartucce Compatibili" },
-              { icon: null, image: "/src/assets/images/drum_unit_premium_template_1779959019359.png", title: "Drum", desc: "Accessori e Unità", color: "bg-purple-100 text-purple-600", slug: "Drum" },
-              { icon: Headphones, image: "", title: "Supporto", desc: "Assistenza Tecnica", color: "bg-green-100 text-green-600", slug: "assistenza" },
+              { 
+                icon: null, 
+                images: [
+                  "/assets/images/toner_compat_bk_premium_1779958984462.png",
+                  "/assets/images/toner_compat_cmy_premium_1779959002014.png",
+                  "https://www.framatek.com/229-large_default/toner-compatibile-brother-tn-2310-2320-bk.jpg",
+                  "https://www.framatek.com/1898-thickbox_default/toner-compatibile-samsung-mlt-d203e-bk.jpg",
+                  "https://www.framatek.com/2229-thickbox_default/toner-compatibile-brother-tn-247-bk.jpg"
+                ], 
+                title: "Toner", desc: "Compatibili e Originali", color: "bg-blue-100 text-blue-600", slug: "Toner Compatibili" 
+              },
+              { 
+                icon: null, 
+                images: [
+                  "/assets/images/inkjet_compat_generic_template_1779959041117.png",
+                  "/assets/images/inkjet_orig_template_1_1779958716094.png",
+                  "/assets/images/inkjet_orig_template_2_1779958733126.png",
+                  "https://www.framatek.com/2270-home_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg",
+                  "https://www.framatek.com/573-home_default/cartuccia-compatibile-epson-t-711-bk.jpg"
+                ], 
+                title: "Inkjet", desc: "Qualità Garantita", color: "bg-indigo-100 text-indigo-600", slug: "Cartucce Compatibili" 
+              },
+              { 
+                icon: null, 
+                images: [
+                  "/assets/images/drum_unit_premium_template_1779959019359.png",
+                  "https://www.framatek.com/10-home_default/drum-compatibile-brother-dr-230-bk.jpg",
+                  "https://www.framatek.com/17-home_default/drum-compatibile-brother-dr-3100-dr3200-bk.jpg",
+                  "https://www.framatek.com/14-home_default/drum-compatibile-brother-dr-3000-dr-570-bk.jpg"
+                ], 
+                title: "Drum", desc: "Accessori e Unità", color: "bg-purple-100 text-purple-600", slug: "Drum" 
+              },
+              { 
+                icon: Headphones, 
+                images: [], 
+                title: "Supporto", desc: "Assistenza Tecnica", color: "bg-green-100 text-green-600", slug: "assistenza" 
+              },
             ].map((cat, i) => {
               const IconComp = cat.icon;
               return (
@@ -68,17 +132,9 @@ const HomePage = ({ onNavigate, productCount }: { onNavigate: (page: string, dat
                   className="group p-8 rounded-3xl bg-slate-50 border border-transparent hover:border-blue-200 hover:bg-white hover:shadow-xl transition-all text-center cursor-pointer"
                   onClick={() => cat.slug === 'assistenza' ? onNavigate('contatti') : onNavigate('catalog', cat.slug)}
                 >
-                  <div className={`w-16 h-16 ${cat.image ? 'p-1.5 bg-white border border-slate-100' : cat.color} rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-sm overflow-hidden`}>
-                    {cat.image ? (
-                      <img 
-                        src={cat.image} 
-                        alt={cat.title} 
-                        className="w-full h-full object-contain mix-blend-multiply" 
-                        referrerPolicy="no-referrer" 
-                        onError={(e) => {
-                          e.currentTarget.src = "https://www.framatek.com/2270-thickbox_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg";
-                        }}
-                      />
+                  <div className={`w-24 h-24 ${cat.images.length > 0 ? 'p-1.5 bg-white border border-slate-100' : cat.color} rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-sm overflow-hidden`}>
+                    {cat.images.length > 0 ? (
+                      <RotatingImage images={cat.images} title={cat.title} />
                     ) : (
                       IconComp && <IconComp size={32} />
                     )}

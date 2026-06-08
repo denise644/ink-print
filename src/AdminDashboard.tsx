@@ -907,8 +907,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
             {/* Top Info Bar */}
             <div className="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col md:flex-row justify-between items-center gap-6 shadow-sm">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-xl font-black">
-                  PL
+                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center border border-slate-200 overflow-hidden shadow-sm p-1">
+                  <img 
+                    src="/assets/images/inkprint_new_logo_1779957051282.png" 
+                    alt="Logo" 
+                    className="w-full h-full object-contain"
+                  />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">

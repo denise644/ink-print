@@ -97,21 +97,21 @@ function mapServerSupabaseToProducts(data: any[]): Product[] {
       const isOriginal = catLower.includes('original');
 
       if (catLower.includes('inchiostr') || catLower.includes('ink')) {
-        image = "/src/assets/images/inkjet_compat_generic_template_1779959041117.png";
+        image = "/assets/images/inkjet_compat_generic_template_1779959041117.png";
       } else if (isOriginal && (catLower.includes('cartucc') || catLower.includes('inkjet'))) {
-        image = "/src/assets/images/inkjet_orig_template_2_1779958733126.png";
+        image = "/assets/images/inkjet_orig_template_2_1779958733126.png";
       } else if (catLower.includes('cartucc')) {
-        image = "/src/assets/images/inkjet_compat_generic_template_1779959041117.png";
+        image = "/assets/images/inkjet_compat_generic_template_1779959041117.png";
       } else if (catLower.includes('drum') || catLower.includes('tambur') || catLower.includes('gruppo')) {
-        image = "/src/assets/images/drum_unit_premium_template_1779959019359.png";
+        image = "/assets/images/drum_unit_premium_template_1779959019359.png";
       } else if (catLower.includes('toner') || catLower.includes('laser')) {
         if (isCyan || isMagenta || isYellow) {
-          image = "/src/assets/images/toner_compat_cmy_premium_1779959002014.png";
+          image = "/assets/images/toner_compat_cmy_premium_1779959002014.png";
         } else {
-          image = "/src/assets/images/toner_compat_bk_premium_1779958984462.png";
+          image = "/assets/images/toner_compat_bk_premium_1779958984462.png";
         }
       } else {
-        image = "/src/assets/images/toner_compat_bk_premium_1779958984462.png";
+        image = "/assets/images/toner_compat_bk_premium_1779958984462.png";
       }
     }
 
@@ -403,20 +403,25 @@ async function startServer() {
   // High-fidelity standard static mapping of true product box packaging / retail photos 
   // redirected to our premium local assets to avoid external slow network queries.
   const OFFICIAL_PRODUCT_IMAGES: Record<string, string> = {
-    "tn2420-bk": "/src/assets/images/toner_compat_bk_premium_1779958984462.png",
-    "t603xl-bk": "/src/assets/images/inkjet_compat_generic_template_1779959041117.png",
-    "t1631-bk": "/src/assets/images/inkjet_compat_generic_template_1779959041117.png",
-    "tn2310-bk": "/src/assets/images/toner_compat_bk_premium_1779958984462.png",
-    "mltd116l-bk": "/src/assets/images/toner_compat_bk_premium_1779958984462.png",
-    "t711-bk": "/src/assets/images/inkjet_compat_generic_template_1779959041117.png",
-    "mltd111xl-bk": "/src/assets/images/toner_compat_bk_premium_1779958984462.png",
-    "dr2400-bk": "/src/assets/images/drum_unit_premium_template_1779959019359.png",
-    "f6u68ae-bk": "/src/assets/images/inkjet_compat_generic_template_1779959041117.png",
-    "w2030x-bk": "/src/assets/images/toner_compat_bk_premium_1779958984462.png",
-    "5437c001-bk": "/src/assets/images/inkjet_orig_template_1_1779958716094.png",
-    "cf259a-bk": "/src/assets/images/toner_compat_bk_premium_1779958984462.png",
-    "6641-bk": "/src/assets/images/inkjet_compat_generic_template_1779959041117.png",
-    "ink-100-c": "/src/assets/images/toner_compat_cmy_premium_1779959002014.png"
+    "tn2420-bk": "/assets/images/toner_compat_bk_premium_1779958984462.png",
+    "tn-2410": "/assets/images/toner_compat_bk_premium_1779958984462.png",
+    "tn-2320": "/assets/images/toner_compat_bk_premium_1779958984462.png",
+    "tn-247-bk": "/assets/images/toner_compat_bk_premium_1779958984462.png",
+    "t603xl-bk": "/assets/images/inkjet_compat_generic_template_1779959041117.png",
+    "603xl": "/assets/images/inkjet_compat_generic_template_1779959041117.png",
+    "t1631-bk": "/assets/images/inkjet_compat_generic_template_1779959041117.png",
+    "tn2310-bk": "/assets/images/toner_compat_bk_premium_1779958984462.png",
+    "mltd116l-bk": "/assets/images/toner_compat_bk_premium_1779958984462.png",
+    "t711-bk": "/assets/images/inkjet_compat_generic_template_1779959041117.png",
+    "mltd111xl-bk": "/assets/images/toner_compat_bk_premium_1779958984462.png",
+    "dr2400-bk": "/assets/images/drum_unit_premium_template_1779959019359.png",
+    "dr-2400": "/assets/images/drum_unit_premium_template_1779959019359.png",
+    "f6u68ae-bk": "/assets/images/inkjet_compat_generic_template_1779959041117.png",
+    "w2030x-bk": "/assets/images/toner_compat_bk_premium_1779958984462.png",
+    "5437c001-bk": "/assets/images/inkjet_orig_template_1_1779958716094.png",
+    "cf259a-bk": "/assets/images/toner_compat_bk_premium_1779958984462.png",
+    "6641-bk": "/assets/images/inkjet_compat_generic_template_1779959041117.png",
+    "ink-100-c": "/assets/images/toner_compat_cmy_premium_1779959002014.png"
   };
 
   function getFramatekUrls(category: string, name: string): string[] {
@@ -1338,8 +1343,8 @@ async function startServer() {
     });
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    // Serves /src/assets/images directly in production fallback for dynamic image mapping URLs
-    app.use('/src/assets/images', express.static(path.join(process.cwd(), 'src/assets/images')));
+    // Serves /assets/images directly in production fallback for dynamic image mapping URLs
+    app.use('/assets/images', express.static(path.join(process.cwd(), 'src/assets/images')));
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));

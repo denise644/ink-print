@@ -312,7 +312,7 @@ export const Hero = ({ onNavigate, productCount }: { onNavigate: (page: string) 
           {/* Main Hero Image Container */}
           <div className="relative z-10 rounded-[3rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/10 glass-dark glow-blue">
             <img 
-              src="/src/assets/images/hero_ecommerce_supplies_1779955116676.png" 
+              src="/assets/images/hero_ecommerce_supplies_1779955116676.png" 
               alt="Printer Supplies Premium" 
               className="w-full h-auto opacity-100 object-cover scale-100"
               onError={(e) => {

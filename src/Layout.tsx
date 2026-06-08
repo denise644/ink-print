@@ -33,7 +33,7 @@ export const Navbar = ({ onSearch, onNavigate }: { onSearch: (val: string) => vo
         <div onClick={() => onNavigate('home')} className="flex items-center gap-3 cursor-pointer group">
           <div className="h-12 w-12 flex items-center justify-center rounded-xl overflow-hidden shadow-sm border border-slate-100 bg-white">
             <img 
-              src="/src/assets/images/inkprint_new_logo_1779957051282.png" 
+              src="/assets/images/inkprint_new_logo_1779957051282.png" 
               alt="Ink&Print Logo" 
               className="w-full h-full object-contain"
               referrerPolicy="no-referrer"
@@ -194,8 +194,13 @@ export const Footer = ({ onNavigate }: { onNavigate: (page: string, category?: s
           {/* Company Bio column */}
           <div className="space-y-6">
             <div className="flex items-center gap-2 cursor-pointer select-none" onClick={() => onNavigate('home')}>
-              <div className="bg-blue-600 p-2 rounded-xl text-white shadow-md shadow-blue-500/20">
-                <Laptop size={22} className="text-white animate-pulse" />
+              <div className="flex items-center justify-center h-12 w-12 rounded-xl overflow-hidden shadow-sm border border-slate-800 bg-white p-1">
+                <img 
+                  src="/assets/images/inkprint_new_logo_1779957051282.png" 
+                  alt="Ink&Print Logo" 
+                  className="w-full h-full object-contain"
+                  referrerPolicy="no-referrer"
+                />
               </div>
               <span className="text-2xl font-black tracking-tighter text-white">Ink&Print<span className="font-light text-blue-500 italic uppercase text-lg"> By Denise</span></span>
             </div>

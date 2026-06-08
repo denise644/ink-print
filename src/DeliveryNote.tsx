@@ -98,7 +98,7 @@ export const DeliveryNote = ({ order, onBack }: DeliveryNoteProps) => {
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-white rounded-lg overflow-hidden border border-slate-200">
                 <img 
-                  src="/src/assets/images/inkprint_new_logo_1779957051282.png" 
+                  src="/assets/images/inkprint_new_logo_1779957051282.png" 
                   alt="Logo" 
                   className="w-full h-full object-contain"
                 />

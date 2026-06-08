@@ -141,7 +141,7 @@ export const getProductImageGallery = (product: {
   
   // Real backup fallback per category and brand context
   const fallback = getCategoryImageTemplates(product.category, product.brand, product.name);
-  const mainImage = fallback.length > 0 ? fallback[0] : "/src/assets/images/toner_compat_bk_premium_1779958984462.png";
+  const mainImage = fallback.length > 0 ? fallback[0] : "/assets/images/toner_compat_bk_premium_1779958984462.png";
   return [mainImage, targetSecondImage, mainImage];
 };
 
@@ -253,7 +253,7 @@ export const ProductImage: React.FC<ProductImageProps> = ({
     const initialImg = initialGallery[viewIndex] || initialGallery[0];
     
     // Prioritize real images over generic ones instantly without network overhead
-    setActiveImage(initialImg || "/src/assets/images/toner_compat_bk_premium_1779958984462.png");
+    setActiveImage(initialImg || "/assets/images/toner_compat_bk_premium_1779958984462.png");
   }, [product, viewIndex]);
 
   useEffect(() => {
