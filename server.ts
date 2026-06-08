@@ -9,18 +9,7 @@ import { parse } from "csv-parse/sync";
 import { GoogleGenAI } from "@google/genai";
 // Supabase import removed - disconnected
 
-let productsData: Product[] = [];
-try {
-  const productsPath = path.join(process.cwd(), "src/data/products.json");
-  if (fs.existsSync(productsPath)) {
-    productsData = JSON.parse(fs.readFileSync(productsPath, "utf8"));
-    console.log(`Successfully loaded ${productsData.length} products from products.json`);
-  } else {
-    console.warn("products.json not found at", productsPath);
-  }
-} catch (e) {
-  console.error("Failed to load products.json:", e);
-}
+import productsJson from "./src/data/products.json";
 
 interface Product {
   id: string;
@@ -33,307 +22,140 @@ interface Product {
   compatibility: string[];
   description: string;
   image: string;
+  images?: string[];
 }
 
-// Supabase disconnected completely
-const serverSupabase = null;
-const serverSupabaseUrl = "";
-const serverSupabaseAnonKey = "";
-
-function mapServerSupabaseToProducts(data: any[]): Product[] {
-  return data.map((item: any) => {
-    let compatibilityArray: string[] = [];
-    const rawComp = item.compatibility || item.compatibilita || item.compatible || '';
-    if (Array.isArray(rawComp)) {
-      compatibilityArray = rawComp.map(String);
-    } else if (typeof rawComp === 'string') {
-      const trimmed = rawComp.trim();
-      if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
-        try {
-          const parsed = JSON.parse(trimmed);
-          if (Array.isArray(parsed)) {
-            compatibilityArray = parsed.map(String);
-          } else {
-            compatibilityArray = [String(parsed)];
-          }
-        } catch {
-          compatibilityArray = trimmed.split(',').map(s => s.trim()).filter(Boolean);
-        }
-      } else if (trimmed) {
-        compatibilityArray = trimmed.split(',').map(s => s.trim()).filter(Boolean);
-      }
-    }
-    const priceValue = item.price !== undefined ? item.price : (item.prezzo !== undefined ? item.prezzo : 0);
-
-    // Heuristic Category mapping
-    let category = String(item.category || item.categoria || '');
-    if (!category) {
-      const n = String(item.name || '').toLowerCase();
-      if (n.includes('toner compatibile') || n.includes('compatibile brother') || n.includes('compatibile samsung') || n.includes('compatibile hp') || n.includes('toner dhea')) {
-        category = 'Toner Compatibili';
-      } else if (n.includes('toner originale') || n.includes('originale brother') || n.includes('originale canon')) {
-        category = 'Toner Originali';
-      } else if (n.includes('cartuccia compatibile') || n.includes('inchiostro compatibile') || n.includes('compatibile epson') || n.includes('cartucce compatibili')) {
-        category = 'Cartucce Compatibili';
-      } else if (n.includes('drum') || n.includes('tamburo')) {
-        category = 'Drum Compatibili';
-      } else {
-        category = 'Toner Compatibili';
-      }
-    }
-
-    // Heuristic Brand mapping
-    let brand = String(item.brand || item.marca || '');
-    if (!brand) {
-      const n = String(item.name || '').toLowerCase();
-      if (n.includes('brother')) brand = 'Brother';
-      else if (n.includes('hp')) brand = 'HP';
-      else if (n.includes('epson')) brand = 'Epson';
-      else if (n.includes('canon')) brand = 'Canon';
-      else if (n.includes('samsung')) brand = 'Samsung';
-      else brand = 'Generico';
-    }
-
-    // SKU Mapping
-    const sku = String(item.sku || item.code || 'IP-' + item.id);
-
-    // Image Mapping
-    let image = String(item.image || item.immagine || item.image_url || '');
-    if (!image || image.includes('unsplash.com') || image.includes('placeholder.com')) {
-      const catLower = category.toLowerCase();
-      const nameLower = String(item.name || '').toLowerCase();
-      const isCyan = nameLower.includes('cyan') || nameLower.includes('ciano') || nameLower.includes('azure') || nameLower.includes('azzurro') || nameLower.includes('-c') || nameLower.includes(' c ');
-      const isMagenta = nameLower.includes('magenta') || nameLower.includes('-m') || nameLower.includes(' m ');
-      const isYellow = nameLower.includes('yellow') || nameLower.includes('giallo') || nameLower.includes('-y') || nameLower.includes(' y ');
-      const isOriginal = catLower.includes('original');
-
-      if (catLower.includes('inchiostr') || catLower.includes('ink')) {
-        image = "/assets/images/inkjet_compat_generic_template_1779959041117.png";
-      } else if (isOriginal && (catLower.includes('cartucc') || catLower.includes('inkjet'))) {
-        image = "/assets/images/inkjet_orig_template_2_1779958733126.png";
-      } else if (catLower.includes('cartucc')) {
-        image = "/assets/images/inkjet_compat_generic_template_1779959041117.png";
-      } else if (catLower.includes('drum') || catLower.includes('tambur') || catLower.includes('gruppo')) {
-        image = "/assets/images/drum_unit_premium_template_1779959019359.png";
-      } else if (catLower.includes('toner') || catLower.includes('laser')) {
-        if (isCyan || isMagenta || isYellow) {
-          image = "/assets/images/toner_compat_cmy_premium_1779959002014.png";
-        } else {
-          image = "/assets/images/toner_compat_bk_premium_1779958984462.png";
-        }
-      } else {
-        image = "/assets/images/toner_compat_bk_premium_1779958984462.png";
-      }
-    }
-
-    // Description Mapping
-    const description = String(item.description || item.descrizione || `Prodotto professionale di alta qualità per la tua stampante ${brand}. Garanzia Ink&Print By Denise.`);
-
-    return {
-      id: String(item.id || sku),
-      sku: sku,
-      name: String(item.name || item.nome || item.title || 'Prodotto Senza Nome'),
-      category: category,
-      brand: brand,
-      price: Number(priceValue) || 0,
-      availability: item.availability !== undefined 
-        ? Boolean(item.availability) 
-        : (item.disponibilita !== undefined ? Boolean(item.disponibilita) : true),
-      compatibility: compatibilityArray,
-      description: description,
-      image: image
-    };
-  });
-}
-
-async function withTimeout<T>(promise: PromiseLike<T> | any, timeoutMs: number): Promise<T> {
-  let timeoutId: any;
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => reject(new Error(`Timeout of ${timeoutMs}ms exceeded`)), timeoutMs);
-  });
-  return Promise.race([
-    Promise.resolve(promise).then(res => {
-      clearTimeout(timeoutId);
-      return res;
-    }),
-    timeoutPromise
-  ]);
-}
-
-async function getSupabaseProducts(): Promise<Product[]> {
-  return [];
-}
-
-// Data loaded from processed document
-let realProducts: Product[] = Array.isArray(productsData) ? [...(productsData as Product[])] : [];
-
-// Expand to exactly 1536 prodotti as observed
-let products: Product[] = [...realProducts];
-const targetCount = 1536;
-
-if (products.length < targetCount && realProducts.length > 0) {
-  // Extract real metadata for better generation
-  const realBrands = Array.from(new Set(realProducts.map(p => p.brand)));
-  const realCategories = Array.from(new Set(realProducts.map(p => p.category)));
-  
-  for (let i = products.length; i < targetCount; i++) {
-    const base = realProducts[i % realProducts.length];
-    if (!base) continue;
-    
-    const brand = realBrands[i % realBrands.length] || "Generico";
-    const cat = realCategories[i % realCategories.length] || "Consumabili";
-    
-    // Generate logical permutations
-    const isOriginal = cat.includes('Originali');
-    const genName = `${cat.split(' ')[0]} ${isOriginal ? 'Originale' : 'Compatibile'} ${brand} Serie ${base.name.split(' ').pop() || 'Pro'} #${i}`;
-    
-    products.push({
-      id: `gen-${i}`,
-      sku: `${brand.slice(0, 2).toUpperCase()}-${base.sku.split('-')[0]}-${i}`,
-      name: genName,
-      category: cat,
-      brand: brand,
-      price: Number((Math.random() * (45 - 5) + 5).toFixed(2)),
-      availability: Math.random() > 0.1,
-      compatibility: [`${brand} OfficeJet ${i % 100}`, `${brand} LaserJet Pro ${i % 200}`, `${brand} PIXMA ${i % 50}`],
-      description: `Prodotto professionale di alta qualità per la tua stampante ${brand}. Garanzia Ink&Print By Denise.`,
-      image: "" // Will be mapped to high-fidelity template below
-    });
-  }
-} else if (products.length === 0) {
-  console.warn("No products found in data source. Generating emergency fallback data.");
-  // Emergency fallback if products.json is missing or empty
-  for (let i = 0; i < 20; i++) {
-    products.push({
-      id: `fallback-${i}`,
-      sku: `FB-${i}`,
-      name: `Toner Compatibile Serie Fallback #${i}`,
-      category: "Toner Compatibili",
-      brand: "Generico",
-      price: 9.99,
-      availability: true,
-      compatibility: ["Stampante Universale"],
-      description: "Dati di emergenza caricati a causa di un errore nel database locale.",
-      image: ""
-    });
-  }
-}
-
-// Map any product image to the beautiful real category images provided by the user for a consistent high-fidelity catalogue
-products = products.map(p => {
-  const cat = (p.category || '').toLowerCase();
-  
-  const IMAGES_TONER_COMPATIBILI = [
-    "https://www.framatek.com/229-large_default/toner-compatibile-brother-tn-2310-2320-bk.jpg",
-    "https://www.framatek.com/1898-thickbox_default/toner-compatibile-samsung-mlt-d203e-bk.jpg",
-    "https://www.framatek.com/1932-large_default/toner-compatibile-samsung-ml1660-mlt-d1042s-bk.jpg",
-    "https://www.framatek.com/2229-thickbox_default/toner-compatibile-brother-tn-247-bk.jpg",
-    "https://www.framatek.com/231-thickbox_default/toner-compatibile-brother-tn-241-bk.jpg"
-  ];
-
-  const IMAGES_TONER_ORIGINALI = [
-    "https://www.framatek.com/toner-originali/toner-originale-ricoh-giallo-841926-mp-c2503y-9500-pagine",
-    "https://www.framatek.com/toner-originali/toner-nero-originale-laserjet-hp-142-a",
-    "https://www.framatek.com/12223-home_default/ricoh-mp-3554-bk-cartuccia-toner-originale-nero-842125.jpg",
-    "https://www.framatek.com/8392-home_default/toner-originalelexmark-b-2236-dw.jpg",
-    "https://www.framatek.com/8991-home_default/brother-tn2510xl-toner-originale-nero.jpg"
-  ];
-
-  const IMAGES_INKJET_COMPATIBILI = [
-    "https://www.framatek.com/2270-home_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg",
-    "https://www.framatek.com/573-home_default/cartuccia-compatibile-epson-t-711-bk.jpg",
-    "https://www.framatek.com/605-home_default/cartuccia-compatibile-epson-t-1631-bk.jpg",
-    "https://www.framatek.com/609-home_default/cartuccia-compatibile-epson-t-1633-m.jpg",
-    "https://www.framatek.com/inkjet-compatibili/cartuccia-compatibile-brother-lc-223-xl-bk"
-  ];
-
-  const IMAGES_INKJET_ORIGINALI = [
-    "https://www.framatek.com/357-home_default/cartuccia-originale-canon-cl-511-9ml-cmy-cl-511.jpg",
-    "https://www.framatek.com/356-home_default/cartuccia-originale-canon-cl-41-12ml-cmy-cl-41.jpg",
-    "https://www.framatek.com/364-home_default/cartuccia-originale-canon-pg-510-9ml-bk-pg-510.jpg",
-    "https://www.framatek.com/2321-home_default/cartuccia-originale-hp-300-xl-420pg-cmy-cc644ee.jpg",
-    "https://www.framatek.com/2318-home_default/cartuccia-originale-hp-300-200pg-bk-cc640ee.jpg"
-  ];
-
-  const IMAGES_DRUM = [
-    "https://www.framatek.com/10-home_default/drum-compatibile-brother-dr-230-bk.jpg",
-    "https://www.framatek.com/17-home_default/drum-compatibile-brother-dr-3100-dr3200-bk.jpg",
-    "https://www.framatek.com/14-home_default/drum-compatibile-brother-dr-3000-dr-570-bk.jpg",
-    "https://www.framatek.com/1340-home_default/drum-compatibile-oki-5600-5700-5800-5900-y.jpg"
-  ];
-
-  const IMAGES_INCHIOSTRI_COMPATIBILI = [
-    "https://www.framatek.com/inchiostri-compatibili/inchiostro-compatibile-giallo-epson-t-101-102-103-104-106",
-    "https://www.framatek.com/2017-home_default/inchiostro-compatibile-epson-6642-c.jpg",
-    "https://www.framatek.com/2372-home_default/inchiostro-compatibile-per-epson-magenta.jpg",
-    "https://www.framatek.com/2360-home_default/epson-100-100-ml-c-inchiostro-compatibile.jpg",
-    "https://www.framatek.com/2019-home_default/inchiostro-compatibile-epson-6643-m.jpg"
-  ];
-
-  // Derive a simple numeric seed from product ID/sku to vary the images deterministically
-  let hash = 0;
-  const str = p.id || p.sku || p.name;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const index = Math.abs(hash);
-
-  let finalImg = '';
-
-  // 1. Drum / Tamburi / Gruppo
-  if (cat.includes('drum') || cat.includes('tambur') || cat.includes('gruppo')) {
-    finalImg = IMAGES_DRUM[index % IMAGES_DRUM.length];
-  }
-  // 2. Inchiostri Compatibili (Ink refills)
-  else if (cat.includes('inchiostr') || cat.includes('ink')) {
-    finalImg = IMAGES_INCHIOSTRI_COMPATIBILI[index % IMAGES_INCHIOSTRI_COMPATIBILI.length];
-  }
-  // 3. Cartucce Originali (Inkjet Originali)
-  else if (cat.includes('original') && (cat.includes('cartucc') || cat.includes('inkjet'))) {
-    finalImg = IMAGES_INKJET_ORIGINALI[index % IMAGES_INKJET_ORIGINALI.length];
-  }
-  // 4. Cartucce Compatibili / Inkjet Compatibili
-  else if (cat.includes('cartucc') || cat.includes('inkjet')) {
-    finalImg = IMAGES_INKJET_COMPATIBILI[index % IMAGES_INKJET_COMPATIBILI.length];
-  }
-  // 5. Toner Originali
-  else if (cat.includes('original') && cat.includes('toner')) {
-    finalImg = IMAGES_TONER_ORIGINALI[index % IMAGES_TONER_ORIGINALI.length];
-  }
-  // 6. Toner Compatibili
-  else if (cat.includes('toner')) {
-    finalImg = IMAGES_TONER_COMPATIBILI[index % IMAGES_TONER_COMPATIBILI.length];
-  }
-  // Fallbacks
-  else {
-    finalImg = IMAGES_TONER_COMPATIBILI[index % IMAGES_TONER_COMPATIBILI.length];
-  }
-
-  return { 
-    ...p, 
-    image: finalImg,
-    images: [
-      finalImg,
-      "https://www.framatek.com/2270-thickbox_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg",
-      finalImg
-    ]
-  };
-});
+let products: Product[] = [];
 
 async function startServer() {
+  console.log("[SERVER] Starting Ink&Print Backend...");
+  
+  // Initialize data inside startServer to catch errors
+  try {
+    let productsData: Product[] = (productsJson as any) || [];
+    const productsCsvPath = path.join(process.cwd(), "src/data/products.csv");
+    const rootCsvPath = path.join(process.cwd(), "products.csv");
+    
+    console.log(`[DATA] Initial data loaded from bundled JSON: ${productsData.length} records`);
+    
+    // Check if a CSV override exists
+    if (fs.existsSync(productsCsvPath)) {
+       const csvContent = fs.readFileSync(productsCsvPath, "utf8");
+       productsData = parse(csvContent, { columns: true, skip_empty_lines: true, cast: true });
+       console.log(`[DATA] CSV override found: Successfully loaded ${productsData.length} records from ${productsCsvPath}`);
+    } else if (fs.existsSync(rootCsvPath)) {
+       const csvContent = fs.readFileSync(rootCsvPath, "utf8");
+       productsData = parse(csvContent, { columns: true, skip_empty_lines: true, cast: true });
+       console.log(`[DATA] CSV override found: Successfully loaded ${productsData.length} records from ${rootCsvPath}`);
+    }
+
+    // Expand products
+    let realProducts: Product[] = Array.isArray(productsData) ? [...productsData] : [];
+    products = [...realProducts];
+    const targetCount = 1536;
+
+    if (products.length < targetCount && realProducts.length > 0) {
+      console.log(`[DATA] Expanding catalog to ${targetCount} items...`);
+      const realBrands = Array.from(new Set(realProducts.map(p => p.brand)));
+      const realCategories = Array.from(new Set(realProducts.map(p => p.category)));
+      
+      for (let i = products.length; i < targetCount; i++) {
+        const base = realProducts[i % realProducts.length];
+        if (!base) continue;
+        
+        const brand = realBrands[i % realBrands.length] || "Generico";
+        const cat = realCategories[i % realCategories.length] || "Consumabili";
+        
+        const isOriginal = cat.includes('Originali');
+        const genName = `${cat.split(' ')[0]} ${isOriginal ? 'Originale' : 'Compatibile'} ${brand} Serie ${base.name.split(' ').pop() || 'Pro'} #${i}`;
+        
+        products.push({
+          id: `gen-${i}`,
+          sku: `${brand.slice(0, 2).toUpperCase()}-${base.sku.split('-')[0]}-${i}`,
+          name: genName,
+          category: cat,
+          brand: brand,
+          price: Number((Math.random() * (45 - 5) + 5).toFixed(2)),
+          availability: Math.random() > 0.1,
+          compatibility: [`${brand} OfficeJet ${i % 100}`, `${brand} LaserJet Pro ${i % 200}`, `${brand} PIXMA ${i % 50}`],
+          description: `Prodotto professionale di alta qualità per la tua stampante ${brand}. Garanzia Ink&Print By Denise.`,
+          image: ""
+        });
+      }
+    } else if (products.length === 0) {
+      console.warn("[DATA] No data found. Generating emergency fallback catalog.");
+      for (let i = 0; i < 50; i++) {
+        products.push({
+          id: `fallback-${i}`,
+          sku: `FB-${i}`,
+          name: `Prodotto Fallback #${i}`,
+          category: "Toner Compatibili",
+          brand: "Generico",
+          price: 19.99,
+          availability: true,
+          compatibility: ["Stampante Universale"],
+          description: "Database di emergenza caricato.",
+          image: ""
+        });
+      }
+    }
+
+    // Image mapping
+    console.log("[DATA] Applying image mapping...");
+    products = products.map(p => {
+      const cat = (p.category || '').toLowerCase();
+      const IMAGES_TONER_COMPATIBILI = [
+        "https://www.framatek.com/229-large_default/toner-compatibile-brother-tn-2310-2320-bk.jpg",
+        "https://www.framatek.com/1898-thickbox_default/toner-compatibile-samsung-mlt-d203e-bk.jpg"
+      ];
+      const IMAGES_INKJET_COMPATIBILI = [
+        "https://www.framatek.com/2270-home_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg"
+      ];
+      
+      const str = p.id || p.sku || p.name;
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      const index = Math.abs(hash);
+
+      let finalImg = IMAGES_TONER_COMPATIBILI[0];
+      if (cat.includes('cartucc') || cat.includes('inkjet')) {
+        finalImg = IMAGES_INKJET_COMPATIBILI[index % IMAGES_INKJET_COMPATIBILI.length];
+      } else if (cat.includes('toner')) {
+        finalImg = IMAGES_TONER_COMPATIBILI[index % IMAGES_TONER_COMPATIBILI.length];
+      }
+
+      return { ...p, image: finalImg };
+    });
+    
+    console.log(`[DATA] Catalog ready: ${products.length} items.`);
+  } catch (err) {
+    console.error("[DATA ERROR] Failed to initialize catalog data:", err);
+  }
+
   const app = express();
   const PORT = 3000;
 
   app.use(express.json({ limit: '10mb' }));
 
-  // Health check endpoint
+// Health check endpoint
   app.get("/api/health", (req, res) => {
+    console.log("[HEALTH] System check requested");
     res.json({ 
       status: "ok", 
       message: "Ink&Print Server is active",
       productCount: products.length,
-      env: process.env.NODE_ENV
+      nodeVersion: process.version,
+      env: process.env.NODE_ENV,
+      cwd: process.cwd()
     });
+  });
+
+  // Request logger middleware for debugging API calls in production
+  app.use((req, res, next) => {
+    if (req.url.startsWith('/api')) {
+      console.log(`[API REQUEST] ${new Date().toISOString()} - ${req.method} ${req.url}`);
+    }
+    next();
   });
 
   let aiClient: GoogleGenAI | null = null;
@@ -390,6 +212,11 @@ async function startServer() {
 
   app.get("/api/products", async (req, res) => {
     try {
+      if (!products || products.length === 0) {
+        console.error("[API ERROR] Products array is empty!");
+        return res.status(503).json({ error: "Catalogo non ancora pronto o vuoto" });
+      }
+
       console.log(`[GET] /api/products - Query:`, req.query);
       const sourceProducts = [...products];
 
@@ -1389,12 +1216,34 @@ async function startServer() {
       }
     });
   } else {
+    console.log("[SERVER] Starting in PRODUCTION mode");
     const distPath = path.join(process.cwd(), 'dist');
-    // Serves /assets/images directly in production fallback for dynamic image mapping URLs
-    app.use('/assets/images', express.static(path.join(process.cwd(), 'src/assets/images')));
+    
+    // Safety check for dist directory
+    if (!fs.existsSync(distPath)) {
+      console.error(`[CRITICAL] dist directory NOT found at ${distPath}. Build may have failed.`);
+    }
+
+    // Static assets
     app.use(express.static(distPath));
+    
+    // Assets from src as secondary fallback just in case
+    app.use('/src/assets/images', express.static(path.join(process.cwd(), 'src/assets/images')));
+    
+    // SPA catch-all
     app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      // Don't catch API routes with 404 handler for index.html if they weren't matched
+      if (req.url.startsWith('/api')) {
+        console.warn(`[404] API route not found: ${req.url}`);
+        return res.status(404).json({ error: "Rotta API non trovata" });
+      }
+      
+      const indexPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(404).send("File index.html non trovato nella cartella dist. Controllare il processo di build.");
+      }
     });
   }
 

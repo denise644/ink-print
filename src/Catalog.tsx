@@ -37,27 +37,51 @@ export const Catalog = ({ initialSearch = "", initialCategory = "", onNavigate }
       if (filters.minPrice) query.append('minPrice', filters.minPrice);
       if (filters.maxPrice) query.append('maxPrice', filters.maxPrice);
 
-      const [prodRes, catRes, brandRes] = await Promise.all([
-        fetch(`/api/products?${query}`),
-        fetch('/api/categories'),
-        fetch('/api/brands')
-      ]);
+      let prodData, catData, brandData;
 
-      if (!prodRes.ok) {
-        throw new Error(`Errore caricamento prodotti: ${prodRes.status} ${prodRes.statusText}`);
-      }
-      if (!catRes.ok) {
-        throw new Error(`Errore caricamento categorie: ${catRes.status} ${catRes.statusText}`);
-      }
-      if (!brandRes.ok) {
-        throw new Error(`Errore caricamento marche: ${brandRes.status} ${brandRes.statusText}`);
+      try {
+        const [prodRes, catRes, brandRes] = await Promise.all([
+          fetch(`/api/products?${query}`),
+          fetch('/api/categories'),
+          fetch('/api/brands')
+        ]);
+
+        if (!prodRes.ok || !catRes.ok || !brandRes.ok) {
+           throw new Error("API fallite");
+        }
+
+        [prodData, catData, brandData] = await Promise.all([
+          prodRes.json(),
+          catRes.json(),
+          brandRes.json()
+        ]);
+      } catch (apiErr) {
+        console.warn("API fallite, tentativo caricamento da sorgente statica...", apiErr);
+        // Fallback to static JSON import if API fails (common in production deployment issues)
+        const staticData = await import('./data/products.json').then(m => m.default).catch(() => []);
+        
+        // Filter static data manually if API is down
+        let filtered = [...staticData];
+        if (filters.category && filters.category !== 'All') filtered = filtered.filter((p: any) => p.category === filters.category);
+        if (filters.brand && filters.brand !== 'All') filtered = filtered.filter((p: any) => p.brand === filters.brand);
+        if (filters.search) {
+          const s = filters.search.toLowerCase();
+          filtered = filtered.filter((p: any) => 
+            p.name.toLowerCase().includes(s) || 
+            p.sku.toLowerCase().includes(s) || 
+            p.brand.toLowerCase().includes(s)
+          );
+        }
+        
+        prodData = filtered;
+        catData = Array.from(new Set(staticData.map((p: any) => p.category)));
+        brandData = Array.from(new Set(staticData.map((p: any) => p.brand)));
+        
+        if (staticData.length === 0) {
+          throw new Error("Nessun dato disponibile nel catalogo (API offline e file statico mancante).");
+        }
       }
 
-      const [prodData, catData, brandData] = await Promise.all([
-        prodRes.json(),
-        catRes.json(),
-        brandRes.json()
-      ]);
       setProducts(prodData || []);
       setCategories(catData || []);
       setBrands(brandData || []);
