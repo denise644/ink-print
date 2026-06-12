@@ -158,27 +158,132 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json({ limit: '50mb' }));
+  // 1. Basic Middlewares (Order is critical)
+  app.use(express.json({ limit: '100mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
-// Health check endpoint
+  // 2. Logging & Health
+  app.use((req, res, next) => {
+    if (req.url.startsWith('/api')) {
+      console.log(`[API] ${req.method} ${req.url} - ${new Date().toISOString()}`);
+    }
+    next();
+  });
+
   app.get("/api/health", (req, res) => {
-    console.log("[HEALTH] System check requested");
+    console.log("[HEALTH] Requested");
     res.json({ 
       status: "ok", 
-      message: "Ink&Print Server is active",
+      message: "Ink&Print Server v2.0 Active",
       productCount: products.length,
-      nodeVersion: process.version,
       env: process.env.NODE_ENV,
-      cwd: process.cwd()
+      version: "1.0.5"
     });
   });
 
-  // Request logger middleware for debugging API calls in production
-  app.use((req, res, next) => {
-    if (req.url.startsWith('/api')) {
-      console.log(`[API REQUEST] ${new Date().toISOString()} - ${req.method} ${req.url}`);
+  // 3. Core API Routes (Defined BEFORE static serving)
+  app.post("/api/products/import-csv", (req, res) => {
+    try {
+      const { csvText } = req.body;
+      console.log(`[IMPORT] CSV received. Length: ${csvText?.length || 0}`);
+      
+      if (!csvText) {
+        return res.status(400).json({ error: "CSV content missing from request body." });
+      }
+
+      const records: any[] = parse(csvText, { 
+        columns: true, 
+        skip_empty_lines: true, 
+        trim: true,
+        relax_column_count: true,
+        bom: true,
+        delimiter: csvText.includes(';') ? ';' : ','
+      });
+      
+      if (records.length === 0) {
+        return res.status(400).json({ error: "No records found in CSV." });
+      }
+
+      let updatedCount = 0;
+      let newCount = 0;
+      
+      records.forEach((record, idx) => {
+        const sku = (record.sku || record.SKU || record.codice || '').trim();
+        if (!sku) return;
+
+        const existingIdx = products.findIndex(p => p.sku.toLowerCase() === sku.toLowerCase());
+        
+        const newProduct: Product = {
+          id: record.id || record.ID || `import-${Date.now()}-${idx}`,
+          sku: sku,
+          name: record.name || record.NAME || "Prodotto Importato",
+          category: record.category || record.categoria || "Toner Compatibili",
+          brand: record.brand || record.marca || "Generico",
+          price: parseFloat(String(record.price || '0').replace(',', '.')) || 0,
+          availability: true,
+          compatibility: record.compatibility ? String(record.compatibility).split(/[,;]/).map((s: string) => s.trim()) : [],
+          description: record.description || "",
+          image: "" 
+        };
+
+        const processedProduct = assignProductImage(newProduct);
+
+        if (existingIdx !== -1) {
+          products[existingIdx] = { ...products[existingIdx], ...processedProduct };
+          updatedCount++;
+        } else {
+          products.push(processedProduct);
+          newCount++;
+        }
+      });
+
+      // Attempt async persistence
+      const dataPath = path.join(process.cwd(), "src/data");
+      if (fs.existsSync(dataPath)) {
+        fs.writeFile(path.join(dataPath, "products.csv"), csvText, "utf8", () => {});
+      }
+
+      res.json({ 
+        success: true, 
+        message: `Import completato! ${newCount} nuovi, ${updatedCount} aggiornati.`,
+        updatedCount: newCount + updatedCount
+      });
+    } catch (e: any) {
+      console.error("[IMPORT ERROR]", e);
+      res.status(500).json({ error: "Fatal CSV parsing error: " + e.message });
     }
-    next();
+  });
+
+  app.post("/api/products/import-images-csv", (req, res) => {
+    try {
+      const { csvText } = req.body;
+      if (!csvText) return res.status(400).json({ error: "Mapping content missing." });
+
+      const records: any[] = parse(csvText, { 
+        columns: true, 
+        skip_empty_lines: true, 
+        trim: true,
+        delimiter: csvText.includes(';') ? ';' : ','
+      });
+
+      let mappedCount = 0;
+      records.forEach(record => {
+        const sku = (record.sku || record.SKU || record.codice || "").toLowerCase().trim();
+        const imageUrl = record.image || record.IMAGE || record.url || record.immagine;
+        
+        if (sku && imageUrl) {
+          productImagesMap[sku] = imageUrl;
+          mappedCount++;
+          const prod = products.find(p => p.sku.toLowerCase() === sku);
+          if (prod) prod.image = imageUrl;
+        }
+      });
+
+      res.json({ success: true, mappedCount });
+    } catch (e: any) {
+      console.error("[IMAGE IMPORT ERROR]", e);
+      res.status(500).json({ error: e.message });
+    }
   });
 
   let aiClient: GoogleGenAI | null = null;
@@ -1089,195 +1194,26 @@ async function startServer() {
     }
   });
 
-  // --- CATALOGO PRODUCT CSV IMPORT/EXPORT API ---
-  app.get("/api/products/export-csv", (req, res) => {
-    try {
-      console.log("[CSV EXPORT] Starting log export...");
-      let csv = "sku,name,category,brand,price,availability,description\n";
-      products.forEach(p => {
-        const row = [
-          p.sku,
-          `"${(p.name || '').replace(/"/g, '""')}"`,
-          p.category,
-          p.brand,
-          p.price || 0,
-          p.availability ? "1" : "0",
-          `"${(p.description || '').replace(/"/g, '""')}"`
-        ];
-        csv += row.join(",") + "\n";
-      });
-      res.setHeader("Content-Type", "text/csv; charset=utf-8");
-      res.setHeader("Content-Disposition", "attachment; filename=catalogo_prodotti_inkprint.csv");
-      res.send(csv);
-    } catch (e: any) {
-      console.error("[CSV EXPORT ERROR]", e);
-      res.status(500).send("Errore esportazione CSV: " + e.message);
-    }
-  });
 
-  app.post("/api/products/import-csv", (req, res) => {
-    try {
-      const { csvText } = req.body;
-      console.log(`[CSV IMPORT] Request received. Body size: ${JSON.stringify(req.body).length} characters.`);
-      
-      if (!csvText) {
-        console.warn("[CSV IMPORT] No csvText in body");
-        return res.status(400).json({ error: "Contenuto CSV mancante. Assicurati di non caricare file troppo pesanti (>50MB)." });
-      }
-
-      console.log(`[CSV IMPORT] Parsing ${csvText.length} bytes of data...`);
-
-      // Flexible parsing: try to detect delimiter
-      const records: any[] = parse(csvText, { 
-        columns: true, 
-        skip_empty_lines: true, 
-        trim: true,
-        relax_column_count: true,
-        bom: true,
-        delimiter: csvText.includes(';') ? ';' : ','
-      });
-      
-      console.log(`[CSV IMPORT] Parsed ${records.length} records.`);
-
-      if (records.length === 0) {
-        return res.status(400).json({ error: "Il file CSV non contiene righe di dati valide (intestazioni non trovate o file vuoto)." });
-      }
-
-      let updatedCount = 0;
-      let newCount = 0;
-      
-      records.forEach((record, idx) => {
-        const sku = (record.sku || record.SKU || record.codice || '').trim();
-        if (!sku) {
-          if (idx < 5) console.warn(`[CSV IMPORT] Row ${idx} skipped: no SKU found`, record);
-          return;
-        }
-
-        const existingIdx = products.findIndex(p => p.sku.toLowerCase() === sku.toLowerCase());
-        
-        const newProduct: Product = {
-          id: record.id || record.ID || `import-${Date.now()}-${idx}-${Math.floor(Math.random() * 100)}`,
-          sku: sku,
-          name: record.name || record.NAME || record.nome || record.Descrizione || "Nuovo Prodotto",
-          category: record.category || record.CATEGORY || record.categoria || "Toner Compatibili",
-          brand: record.brand || record.BRAND || record.marca || "Generico",
-          price: parseFloat(String(record.price || record.PRICE || record.prezzo || '0').replace(',', '.')) || 0,
-          availability: record.availability === "1" || record.availability === "true" || record.availability === "disponibile" || record.disponibilità === "disponibile",
-          compatibility: record.compatibility ? String(record.compatibility).split(/[,;]/).map((s: string) => s.trim()) : [],
-          description: record.description || record.DESCRIPTION || record.descrizione || "",
-          image: "" 
-        };
-
-        const processedProduct = assignProductImage(newProduct);
-
-        if (existingIdx !== -1) {
-          products[existingIdx] = { ...products[existingIdx], ...processedProduct };
-          updatedCount++;
-        } else {
-          products.push(processedProduct);
-          newCount++;
-        }
-      });
-
-      console.log(`[CSV IMPORT] SUCCESS: ${newCount} new, ${updatedCount} updated.`);
-
-      // Persistence
-      try {
-        const dataPath = path.join(process.cwd(), "src/data");
-        if (!fs.existsSync(dataPath)) fs.mkdirSync(dataPath, { recursive: true });
-        fs.writeFileSync(path.join(dataPath, "products.csv"), csvText, "utf8");
-      } catch (fse) {
-        console.error("[CSV IMPORT] Failed to write products.csv to disk", fse);
-      }
-
-      res.json({ 
-        success: true, 
-        message: `Sincronizzazione completata! ${newCount} prodotti nuovi, ${updatedCount} aggiornati.`,
-        updatedCount: newCount + updatedCount
-      });
-    } catch (e: any) {
-      console.error("[CSV IMPORT ERROR]", e);
-      res.status(500).json({ error: "Errore fatale parsing CSV: " + e.message });
-    }
-  });
-
-  app.post("/api/products/import-images-csv", (req, res) => {
-    try {
-      const { csvText } = req.body;
-      console.log(`[IMAGE IMPORT] Request received. size: ${csvText?.length || 0}`);
-      
-      if (!csvText) {
-        return res.status(400).json({ error: "Contenuto mappatura mancante." });
-      }
-
-      const records: any[] = parse(csvText, { 
-        columns: true, 
-        skip_empty_lines: true, 
-        trim: true,
-        relax_column_count: true,
-        delimiter: csvText.includes(';') ? ';' : ','
-      });
-
-      let mappedCount = 0;
-      records.forEach(record => {
-        const sku = (record.sku || record.SKU || record.codice || "").toLowerCase().trim();
-        const imageUrl = record.image || record.IMAGE || record.url || record.immagine || record.Foto;
-        
-        if (sku && imageUrl) {
-          productImagesMap[sku] = imageUrl;
-          mappedCount++;
-          
-          const prod = products.find(p => p.sku.toLowerCase() === sku);
-          if (prod) prod.image = imageUrl;
-        }
-      });
-
-      // Persist
-      try {
-        const mappingsPath = path.join(process.cwd(), "src/data/image_mappings.json");
-        fs.writeFileSync(mappingsPath, JSON.stringify(productImagesMap, null, 2), "utf8");
-      } catch (se) {
-        console.error("[IMAGE IMPORT] Disk write failed", se);
-      }
-
-      res.json({ 
-        success: true, 
-        message: `Mappatura foto terminata. Allineati ${mappedCount} SKU.`,
-        mappedCount 
-      });
-    } catch (e: any) {
-      console.error("[IMAGE IMPORT ERROR]", e);
-      res.status(500).json({ error: "Errore mappatura tabelle immagini: " + e.message });
-    }
-  });
-
-  // Global Error Handler Middleware
+  // 4. Global Error Handler
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    console.error("[GLOBAL SERVER ERROR]", err);
+    console.error("[SERVER ERROR]", err);
     if (!res.headersSent) {
-      res.status(500).json({ 
-        error: "Errore interno del server", 
-        details: err.message,
-        path: req.path
-      });
+      res.status(500).json({ error: "Errore interno server", details: err.message });
     }
   });
 
-
-  // Vite middleware for development
+  // 5. Build/Production / SPA Serving
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-    
-    // Serve index.html transformed by Vite for any SPA route in development
     app.use("*", async (req, res, next) => {
-      const url = req.originalUrl;
       try {
         let template = fs.readFileSync(path.join(process.cwd(), "index.html"), "utf-8");
-        template = await vite.transformIndexHtml(url, template);
+        template = await vite.transformIndexHtml(req.originalUrl, template);
         res.status(200).set({ "Content-Type": "text/html" }).end(template);
       } catch (e: any) {
         vite.ssrFixStacktrace(e);
@@ -1285,39 +1221,21 @@ async function startServer() {
       }
     });
   } else {
-    console.log("[SERVER] Starting in PRODUCTION mode");
     const distPath = path.join(process.cwd(), 'dist');
-    
-    // Safety check for dist directory
-    if (!fs.existsSync(distPath)) {
-      console.error(`[CRITICAL] dist directory NOT found at ${distPath}. Build may have failed.`);
-    }
-
-    // Static assets
     app.use(express.static(distPath));
-    
-    // Assets from src as secondary fallback just in case
-    app.use('/src/assets/images', express.static(path.join(process.cwd(), 'src/assets/images')));
-    
-    // SPA catch-all
     app.get('*', (req, res) => {
-      // Don't catch API routes with 404 handler for index.html if they weren't matched
-      if (req.url.startsWith('/api')) {
-        console.warn(`[404] API route not found: ${req.url}`);
-        return res.status(404).json({ error: "Rotta API non trovata" });
-      }
-      
+      // API 404
+      if (req.url.startsWith('/api')) return res.status(404).json({ error: "Endpoint API non trovato" });
+      // SPA index.html
       const indexPath = path.join(distPath, 'index.html');
-      if (fs.existsSync(indexPath)) {
-        res.sendFile(indexPath);
-      } else {
-        res.status(404).send("File index.html non trovato nella cartella dist. Controllare il processo di build.");
-      }
+      if (fs.existsSync(indexPath)) res.sendFile(indexPath);
+      else res.status(404).send("Build output missing.");
     });
   }
 
+  // 6. App Listen
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server running on http://localhost:${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
   });
 }
 
