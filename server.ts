@@ -1195,6 +1195,62 @@ async function startServer() {
   });
 
 
+  // --- AI PRODUCT PARSING API ---
+  app.post("/api/ai/parse-products", async (req, res) => {
+    try {
+      const { text } = req.body;
+      if (!text) return res.status(400).json({ error: "Nessun testo fornito." });
+
+      const ai = getGoogleGenAI();
+      const chat = ai.chats.create({ 
+        model: "gemini-3-flash-preview",
+        config: {
+          systemInstruction: "Sei un estrattore di dati professionale per ecommerce. Converti testo disordinato in array JSON di prodotti."
+        }
+      });
+
+      const prompt = `Converti il seguente testo in una lista di prodotti strutturata in JSON.
+Il testo può contenere descrizioni, listini, cataloghi sporchi o messaggi con prezzi e compatibilità.
+
+ESTRAI LE SEGUENTI INFORMAZIONI PER OGNI PRODOTTO:
+- name: Nome pulito del prodotto (es: "Toner Brother TN-2420 Nero")
+- price: Prezzo numerico (es: 12.90)
+- compatibility: Lista di modelli di stampante compatibili (es: ["DCP L2530DW", "HL L2350DW"])
+- category: Categoria (es: "Toner Compatibili", "Inchiostri", "Tamburi")
+- brand: Marca (es: "Brother", "HP", "Epson")
+- description: Breve descrizione tecnica se presente
+- stock: Numero intero (usa 100 se non specificato ma indicato come disponibile, altrimenti 0)
+
+REGOLE:
+1. Rispondi ESCLUSIVAMENTE con un array JSON valido.
+2. Non aggiungere spiegazioni o testo extra.
+3. Se un'informazione manca, usa null o stringa vuota.
+4. Pulisci i nomi dai dati superflui ma mantieni le specifiche tecniche importanti.
+5. Se trovi "disponibile" o "disponibilità", imposta stock a un valore positivo.
+
+TESTO DA ELABORARE:
+${text}`;
+
+      const result = await chat.sendMessage({ message: prompt });
+      const responseText = result.text.trim();
+      
+      // Cleanup markdown if AI used it
+      const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : responseText;
+      
+      try {
+        const parsedProducts = JSON.parse(jsonStr);
+        res.json({ success: true, products: parsedProducts });
+      } catch (parseError) {
+        console.error("AI JSON Parse Error:", responseText);
+        res.status(500).json({ error: "Errore nel parsing della risposta AI", raw: responseText });
+      }
+    } catch (e: any) {
+      console.error("AI Generation Error:", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // 4. Global Error Handler
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     console.error("[SERVER ERROR]", err);

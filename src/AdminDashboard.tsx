@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Package, TrendingUp, Clock, Search, Printer, RefreshCw, 
   FileText, Mail, Smartphone, Truck, Check, X, Shield, 
-  Download, Eye, AlertCircle, Lock, Settings, Layers, Inbox, ChevronRight, Key, Database, FileUp
+  Download, Eye, AlertCircle, Lock, Settings, Layers, Inbox, ChevronRight, Key, Database, FileUp, Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -14,6 +14,7 @@ interface AdminDashboardProps {
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from './lib/firebase';
 import { handleFirestoreError, OperationType } from './lib/firebaseUtils';
+import { AICsvCreator } from './components/AICsvCreator';
 
 
 // XML helpers for Danea Easyfatt Export
@@ -113,7 +114,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
   const [refunds, setRefunds] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   
-  const [dashboardTab, setDashboardTab] = useState<"overview" | "orders" | "refunds" | "quotes" | "settings" | "notifications" | "danea" | "csv" | "images">("overview");
+  const [dashboardTab, setDashboardTab] = useState<"overview" | "orders" | "refunds" | "quotes" | "settings" | "notifications" | "danea" | "csv" | "images" | "ai_creator">("overview");
   const [xmlPreview, setXmlPreview] = useState<string>("");
   const [errorPreview, setErrorPreview] = useState<string>("");
   const [simXmlProducts, setSimXmlProducts] = useState<string>(
@@ -1136,11 +1137,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
                   <span className="flex items-center gap-2"><RefreshCw size={14} className={`${dashboardTab === 'danea' ? 'text-white' : 'text-amber-600'}`} /> Sincronizza Danea</span>
                   <span className="bg-amber-100 text-[9px] font-extrabold text-slate-800 uppercase px-1.5 py-0.5 rounded border border-amber-250 tracking-wider font-sans shrink-0">Easyfatt</span>
                 </button>
+
+                <button 
+                  onClick={() => setDashboardTab("ai_creator")}
+                  className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-xs uppercase font-black tracking-wider transition-all border ${dashboardTab === 'ai_creator' ? 'bg-indigo-600 border-indigo-700 text-white shadow-lg shadow-indigo-100' : 'text-slate-750 bg-indigo-50/40 border-indigo-100 hover:bg-white hover:shadow-sm'}`}
+                >
+                  <span className="flex items-center gap-2"><Sparkles size={16} className={dashboardTab === 'ai_creator' ? 'text-white' : 'text-indigo-600'} /> AI CSV Creator</span>
+                  <span className="bg-indigo-100 text-[9px] font-extrabold text-indigo-800 uppercase px-1.5 py-0.5 rounded border border-indigo-250 tracking-wider font-sans shrink-0">PRO</span>
+                </button>
               </div>
 
               {/* Right Column Content View */}
               <div className="lg:col-span-9 space-y-6">
                 
+                {dashboardTab === "ai_creator" && (
+                  <AICsvCreator />
+                )}
+
                 {/* 1. TAB OVERVIEW - DASHBOARD LOGISTICA */}
                 {dashboardTab === "overview" && (
                   <div className="space-y-6">
