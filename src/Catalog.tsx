@@ -67,9 +67,9 @@ export const Catalog = ({ initialSearch = "", initialCategory = "", onNavigate }
         if (filters.search) {
           const s = filters.search.toLowerCase();
           filtered = filtered.filter((p: any) => 
-            p.name.toLowerCase().includes(s) || 
-            p.sku.toLowerCase().includes(s) || 
-            p.brand.toLowerCase().includes(s)
+            (p.name || '').toLowerCase().includes(s) || 
+            (p.sku || '').toLowerCase().includes(s) || 
+            (p.brand || '').toLowerCase().includes(s)
           );
         }
         
@@ -158,8 +158,8 @@ export const Catalog = ({ initialSearch = "", initialCategory = "", onNavigate }
                 <div>
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Marche</label>
                   <div className="space-y-1 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                    {brands.map(brand => (
-                      <label key={brand} className="flex items-center gap-3 cursor-pointer group p-1 hover:bg-slate-50 rounded">
+                    {brands.map((brand, idx) => (
+                      <label key={brand || `brand-${idx}`} className="flex items-center gap-3 cursor-pointer group p-1 hover:bg-slate-50 rounded">
                         <input 
                           type="radio" 
                           name="brand"
@@ -176,8 +176,8 @@ export const Catalog = ({ initialSearch = "", initialCategory = "", onNavigate }
                 <div>
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Categorie</label>
                   <div className="space-y-1 overflow-y-auto max-h-48 pr-2 custom-scrollbar">
-                    {categories.map(cat => (
-                      <label key={cat} className="flex items-center gap-3 cursor-pointer group p-1 hover:bg-slate-50 rounded">
+                    {categories.map((cat, idx) => (
+                      <label key={cat || `cat-${idx}`} className="flex items-center gap-3 cursor-pointer group p-1 hover:bg-slate-50 rounded">
                         <input 
                           type="radio" 
                           name="category"
@@ -219,11 +219,11 @@ export const Catalog = ({ initialSearch = "", initialCategory = "", onNavigate }
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {loading ? (
                 Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="bg-white rounded-3xl p-6 h-96 animate-pulse border border-slate-100" />
+                  <div key={`skeleton-${i}`} className="bg-white rounded-3xl p-6 h-96 animate-pulse border border-slate-100" />
                 ))
-              ) : products.length > 0 ? (
-                products.map((p) => (
-                  <ProductCard key={p.id} product={p} onNavigate={onNavigate} />
+              ) : (products || []).length > 0 ? (
+                (products || []).map((p, idx) => (
+                  <ProductCard key={p.id || p.sku || `prod-${idx}`} product={p} onNavigate={onNavigate} />
                 ))
               ) : (
                 <div className="col-span-full py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200 text-center">

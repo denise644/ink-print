@@ -26,50 +26,32 @@ export const getCategoryImageTemplates = (category: string, brand: string = '', 
   const isOriginal = catLower.includes('original');
 
   const IMAGES_TONER_COMPATIBILI = [
-    "https://www.framatek.com/229-large_default/toner-compatibile-brother-tn-2310-2320-bk.jpg",
-    "https://www.framatek.com/1898-thickbox_default/toner-compatibile-samsung-mlt-d203e-bk.jpg",
-    "https://www.framatek.com/1932-large_default/toner-compatibile-samsung-ml1660-mlt-d1042s-bk.jpg",
-    "https://www.framatek.com/2229-thickbox_default/toner-compatibile-brother-tn-247-bk.jpg",
-    "https://www.framatek.com/231-thickbox_default/toner-compatibile-brother-tn-241-bk.jpg"
+    "/assets/images/toner_compat_bk_premium_1779958984462.png",
+    "/assets/images/toner_compat_cmy_premium_1779959002014.png"
   ];
 
   const IMAGES_TONER_ORIGINALI = [
-    "https://www.framatek.com/toner-originali/toner-originale-ricoh-giallo-841926-mp-c2503y-9500-pagine",
-    "https://www.framatek.com/toner-originali/toner-nero-originale-laserjet-hp-142-a",
-    "https://www.framatek.com/12223-home_default/ricoh-mp-3554-bk-cartuccia-toner-originale-nero-842125.jpg",
-    "https://www.framatek.com/8392-home_default/toner-originalelexmark-b-2236-dw.jpg",
-    "https://www.framatek.com/8991-home_default/brother-tn2510xl-toner-originale-nero.jpg"
+    "/assets/images/toner_compat_bk_premium_1779958984462.png", // Generic placeholder for orig
+    "/assets/images/toner_compat_cmy_premium_1779959002014.png"
   ];
 
   const IMAGES_INKJET_COMPATIBILI = [
-    "https://www.framatek.com/2270-home_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg",
-    "https://www.framatek.com/573-home_default/cartuccia-compatibile-epson-t-711-bk.jpg",
-    "https://www.framatek.com/605-home_default/cartuccia-compatibile-epson-t-1631-bk.jpg",
-    "https://www.framatek.com/609-home_default/cartuccia-compatibile-epson-t-1633-m.jpg",
-    "https://www.framatek.com/inkjet-compatibili/cartuccia-compatibile-brother-lc-223-xl-bk"
+    "/assets/images/inkjet_compat_generic_template_1779959041117.png"
   ];
 
   const IMAGES_INKJET_ORIGINALI = [
-    "https://www.framatek.com/357-home_default/cartuccia-originale-canon-cl-511-9ml-cmy-cl-511.jpg",
-    "https://www.framatek.com/356-home_default/cartuccia-originale-canon-cl-41-12ml-cmy-cl-41.jpg",
-    "https://www.framatek.com/364-home_default/cartuccia-originale-canon-pg-510-9ml-bk-pg-510.jpg",
-    "https://www.framatek.com/2321-home_default/cartuccia-originale-hp-300-xl-420pg-cmy-cc644ee.jpg",
-    "https://www.framatek.com/2318-home_default/cartuccia-originale-hp-300-200pg-bk-cc640ee.jpg"
+    "/assets/images/inkjet_orig_template_1_1779958716094.png",
+    "/assets/images/inkjet_orig_template_2_1779958733126.png",
+    "/assets/images/inkjet_orig_template_3_1779958749399.png",
+    "/assets/images/inkjet_orig_template_4_1779958767149.png"
   ];
 
   const IMAGES_DRUM = [
-    "https://www.framatek.com/10-home_default/drum-compatibile-brother-dr-230-bk.jpg",
-    "https://www.framatek.com/17-home_default/drum-compatibile-brother-dr-3100-dr3200-bk.jpg",
-    "https://www.framatek.com/14-home_default/drum-compatibile-brother-dr-3000-dr-570-bk.jpg",
-    "https://www.framatek.com/1340-home_default/drum-compatibile-oki-5600-5700-5800-5900-y.jpg"
+    "/assets/images/drum_unit_premium_template_1779959019359.png"
   ];
 
   const IMAGES_INCHIOSTRI_COMPATIBILI = [
-    "https://www.framatek.com/inchiostri-compatibili/inchiostro-compatibile-giallo-epson-t-101-102-103-104-106",
-    "https://www.framatek.com/2017-home_default/inchiostro-compatibile-epson-6642-c.jpg",
-    "https://www.framatek.com/2372-home_default/inchiostro-compatibile-per-epson-magenta.jpg",
-    "https://www.framatek.com/2360-home_default/epson-100-100-ml-c-inchiostro-compatibile.jpg",
-    "https://www.framatek.com/2019-home_default/inchiostro-compatibile-epson-6643-m.jpg"
+    "/assets/images/inkjet_compat_generic_template_1779959041117.png" // Safe substitution
   ];
 
   // Derive simple seed to distribute logically
@@ -124,13 +106,14 @@ export const getProductImageGallery = (product: {
   images?: string[];
 }) => {
   const primary = product.image || '';
-  const targetSecondImage = "https://www.framatek.com/2270-thickbox_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg";
+  const targetSecondImage = "/assets/images/inkjet_compat_generic_template_1779959041117.png";
   
   // Define what constitutes a "real" product image versus a generic placeholder
   const isGenericPlaceholder = !primary || 
                                 primary.includes('unsplash.com') || 
                                 primary.includes('placeholder.com') ||
                                 primary === '/vite.svg' ||
+                                primary.includes('framatek.com') ||
                                 primary === '';
 
   // If we have a real product image (e.g. from Framatek or specific upload), prioritize it
@@ -241,7 +224,7 @@ export const ProductImage: React.FC<ProductImageProps> = ({
   const [isScanning, setIsScanning] = useState<boolean>(false);
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    const ultimateFallback = "https://www.framatek.com/2270-thickbox_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg";
+    const ultimateFallback = "/assets/images/toner_compat_bk_premium_1779958984462.png";
     if (activeImage !== ultimateFallback) {
       setActiveImage(ultimateFallback);
     }

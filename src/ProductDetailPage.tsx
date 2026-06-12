@@ -88,12 +88,22 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
     const fetchRelated = async () => {
       try {
         const res = await fetch(`/api/products?category=${encodeURIComponent(product.category)}`);
+        
+        // Handle non-JSON responses (404, 500, HTML errors)
+        const contentType = res.headers.get("content-type");
+        if (!res.ok || !contentType || !contentType.includes("application/json")) {
+          console.warn(`[FETCH RELATED] Unexpected response (${res.status}). Skipping related products.`);
+          return;
+        }
+
         const data = await res.json();
-        // filter out current product & take first 4
-        const filtered = data.filter((p: Product) => p.id !== product.id).slice(0, 4);
-        setRelatedProducts(filtered);
+        // filter out current product & take first 4, safe check for array
+        if (Array.isArray(data)) {
+          const filtered = data.filter((p: Product) => p.id !== product.id).slice(0, 4);
+          setRelatedProducts(filtered);
+        }
       } catch (err) {
-        console.error(err);
+        console.error("[FETCH RELATED ERROR]", err);
       }
     };
     fetchRelated();
@@ -535,7 +545,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                 <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Verifica se il modello esatto della tua stampante è incluso nell'elenco ufficiale di compatibilità:</p>
                 
                 <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {product.compatibility.map((model, idx) => (
+                  {(product.compatibility || []).map((model, idx) => (
                     <div key={idx} className="flex items-center gap-2.5 bg-slate-50 p-4 border border-slate-100 rounded-xl hover:bg-slate-100/50 transition-colors">
                       <div className="w-2 h-2 bg-blue-600 rounded-full shrink-0" />
                       <span className="font-bold text-slate-700 text-xs font-mono tracking-tight">{model}</span>

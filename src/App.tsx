@@ -52,7 +52,7 @@ const RotatingImage = ({ images, title }: { images: string[], title: string }) =
         className="w-full h-full object-contain mix-blend-multiply" 
         referrerPolicy="no-referrer" 
         onError={(e) => {
-          e.currentTarget.src = "https://www.framatek.com/2270-thickbox_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg";
+          e.currentTarget.src = "/assets/images/toner_compat_bk_premium_1779958984462.png";
         }}
       />
     </AnimatePresence>
@@ -87,10 +87,7 @@ const HomePage = ({ onNavigate, productCount }: { onNavigate: (page: string, dat
                 icon: null, 
                 images: [
                   "/assets/images/toner_compat_bk_premium_1779958984462.png",
-                  "/assets/images/toner_compat_cmy_premium_1779959002014.png",
-                  "https://www.framatek.com/229-large_default/toner-compatibile-brother-tn-2310-2320-bk.jpg",
-                  "https://www.framatek.com/1898-thickbox_default/toner-compatibile-samsung-mlt-d203e-bk.jpg",
-                  "https://www.framatek.com/2229-thickbox_default/toner-compatibile-brother-tn-247-bk.jpg"
+                  "/assets/images/toner_compat_cmy_premium_1779959002014.png"
                 ], 
                 title: "Toner", desc: "Compatibili e Originali", color: "bg-blue-100 text-blue-600", slug: "Toner Compatibili" 
               },
@@ -100,18 +97,15 @@ const HomePage = ({ onNavigate, productCount }: { onNavigate: (page: string, dat
                   "/assets/images/inkjet_compat_generic_template_1779959041117.png",
                   "/assets/images/inkjet_orig_template_1_1779958716094.png",
                   "/assets/images/inkjet_orig_template_2_1779958733126.png",
-                  "https://www.framatek.com/2270-home_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg",
-                  "https://www.framatek.com/573-home_default/cartuccia-compatibile-epson-t-711-bk.jpg"
+                  "/assets/images/inkjet_orig_template_3_1779958749399.png",
+                  "/assets/images/inkjet_orig_template_4_1779958767149.png"
                 ], 
                 title: "Inkjet", desc: "Qualità Garantita", color: "bg-indigo-100 text-indigo-600", slug: "Cartucce Compatibili" 
               },
               { 
                 icon: null, 
                 images: [
-                  "/assets/images/drum_unit_premium_template_1779959019359.png",
-                  "https://www.framatek.com/10-home_default/drum-compatibile-brother-dr-230-bk.jpg",
-                  "https://www.framatek.com/17-home_default/drum-compatibile-brother-dr-3100-dr3200-bk.jpg",
-                  "https://www.framatek.com/14-home_default/drum-compatibile-brother-dr-3000-dr-570-bk.jpg"
+                  "/assets/images/drum_unit_premium_template_1779959019359.png"
                 ], 
                 title: "Drum", desc: "Accessori e Unità", color: "bg-purple-100 text-purple-600", slug: "Drum" 
               },
@@ -196,7 +190,7 @@ export default function App() {
         const contentType = res.headers.get("content-type");
         if (!contentType || !contentType.includes("application/json")) {
           const text = await res.text();
-          throw new Error(`Expected JSON but got: ${text.slice(0, 100)}`);
+          throw new Error(`Expected JSON but got: ${text ? text.slice(0, 100) : "empty response"}`);
         }
         return res.json();
       })
@@ -206,8 +200,8 @@ export default function App() {
         }
       })
       .catch(err => {
-        console.warn("Could not load products count from server (e.g. Rate exceeded or offline), using offline fallback of 1536 products:", err.message || err);
-        setProductCount(1536);
+        console.warn("Could not load products count from server, using offline fallback of 527 products:", err.message || err);
+        setProductCount(527);
       });
   }, []);
 

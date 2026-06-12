@@ -507,12 +507,30 @@ export const CartPage: React.FC<CartPageProps> = ({ onBack, onNavigate }) => {
 
                 {/* Secure Payment System */}
                 <div className="space-y-4 pt-2">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Metodo di Pagamento Garantito</p>
-                  <div className="grid grid-cols-3 gap-3">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Scegli il Metodo di Pagamento Sicuro</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {[
-                      { id: "Carta di Credito", label: "Carta Credito / Debito", img: "https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" },
-                      { id: "PayPal", label: "PayPal Express", img: "https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" },
-                      { id: "Bonifico Bancario", label: "Bonifico Bancario", icon: FileText }
+                      { 
+                        id: "Carta di Credito", 
+                        label: "Carta Credito / Debito", 
+                        desc: "Visa, Mastercard, Amex",
+                        img: "https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg",
+                        gateway: "Stripe / Nexi"
+                      },
+                      { 
+                        id: "PayPal", 
+                        label: "PayPal Express", 
+                        desc: "Veloce e Protetto",
+                        img: "https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg",
+                        gateway: "PayPal"
+                      },
+                      { 
+                        id: "Bonifico Bancario", 
+                        label: "Bonifico Bancario", 
+                        desc: "Ideale per B2B",
+                        icon: FileText,
+                        gateway: "Offline"
+                      }
                     ].map(m => {
                       const Icon = m.icon;
                       const isSelected = paymentMethod === m.id;
@@ -523,26 +541,42 @@ export const CartPage: React.FC<CartPageProps> = ({ onBack, onNavigate }) => {
                              setPaymentMethod(m.id);
                              setPaymentError("");
                            }}
-                           className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 cursor-pointer transition-all ${isSelected ? 'bg-blue-50/70 border-blue-600 ring-4 ring-blue-100' : 'bg-white border-slate-100 hover:border-slate-300'}`}
+                           className={`flex flex-col items-center justify-between p-4 rounded-3xl border-2 cursor-pointer transition-all h-full ${isSelected ? 'bg-blue-50/70 border-blue-600 ring-4 ring-blue-100' : 'bg-white border-slate-100 hover:border-slate-300'}`}
                         >
-                           {m.img ? (
-                             <img src={m.img} className="h-4 max-w-full opacity-80" alt={m.label} />
-                           ) : Icon ? (
-                             <Icon size={16} className="text-blue-600" />
-                           ) : null}
-                           <span className="text-[9px] font-black mt-2 text-slate-600 uppercase text-center tracking-tighter leading-none">{m.label}</span>
+                           <div className="flex flex-col items-center flex-1">
+                             {m.img ? (
+                               <img src={m.img} className="h-4 max-w-full opacity-80 mb-2" alt={m.label} />
+                             ) : Icon ? (
+                               <Icon size={20} className="text-blue-600 mb-2" />
+                             ) : null}
+                             <span className="text-[10px] font-black text-slate-900 uppercase text-center tracking-tight leading-tight">{m.label}</span>
+                             <span className="text-[8px] font-bold text-slate-400 text-center mt-1 uppercase tracking-widest">{m.desc}</span>
+                           </div>
+                           
+                           <div className={`mt-3 py-1 px-2 rounded-lg text-[7px] font-black uppercase tracking-[0.15em] border ${isSelected ? 'bg-blue-600 text-white border-blue-700' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
+                             Gateway {m.gateway}
+                           </div>
                         </div>
                       );
                     })}
                   </div>
                 </div>
 
-                {/* DYNAMIC INTEGRATED GATEWAY SUB-FORM (Visa, Mastercard, Revolut secure routing) */}
+                {/* DYNAMIC INTEGRATED GATEWAY SUB-FORM (Visa, Mastercard, American Express via Revolut/Stripe secure routing) */}
                 {paymentMethod === "Carta di Credito" && (
-                  <div className="bg-slate-50 border-2 border-slate-100 rounded-3xl p-5 space-y-4 animate-fadeIn">
-                    <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
-                      <p className="text-[9px] font-black text-slate-450 uppercase tracking-widest">Dettagli Carta di Credito (Revolut Gateway)</p>
-                      <span className="text-[9px] font-black tracking-tighter uppercase px-2 py-0.5 rounded bg-blue-100 text-blue-700">Protected ssl</span>
+                  <div className="bg-slate-50 border-2 border-slate-100 rounded-[2.5rem] p-6 space-y-5 animate-fadeIn relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 flex gap-2">
+                      <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" className="h-3 opacity-40" alt="Visa" />
+                      <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" className="h-3 opacity-40" alt="Mastercard" />
+                      <img src="https://upload.wikimedia.org/wikipedia/commons/3/30/American_Express_logo.svg" className="h-3 opacity-40" alt="Amex" />
+                    </div>
+
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                      <div>
+                        <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Dati della Carta</p>
+                        <p className="text-[8px] text-slate-400 uppercase font-bold tracking-tight">Elaborazione sicura tramite Stripe / Nexi</p>
+                      </div>
+                      <span className="text-[9px] font-black tracking-tighter uppercase px-2 py-0.5 rounded bg-green-100 text-green-700 flex items-center gap-1"><Lock size={10} /> PCI DSS COMPLIANT</span>
                     </div>
                     
                     <div className="space-y-1">

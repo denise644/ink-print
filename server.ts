@@ -30,13 +30,13 @@ let productImagesMap: Record<string, string> = {};
 
 // Common Image Mapping Logic
 const IMAGES_TONER_COMPATIBILI = [
-  "https://www.framatek.com/229-large_default/toner-compatibile-brother-tn-2310-2320-bk.jpg",
-  "https://www.framatek.com/1898-thickbox_default/toner-compatibile-samsung-mlt-d203e-bk.jpg"
+  "/assets/images/toner_compat_bk_premium_1779958984462.png",
+  "/assets/images/toner_compat_cmy_premium_1779959002014.png"
 ];
 const IMAGES_INKJET_COMPATIBILI = [
-  "https://www.framatek.com/2270-home_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg"
+  "/assets/images/inkjet_compat_generic_template_1779959041117.png"
 ];
-const DRUM_IMAGE = "https://www.framatek.com/3932-thickbox_default/tamburo-compatibile-brother-dr-2400-bk.jpg";
+const DRUM_IMAGE = "/assets/images/drum_unit_premium_template_1779959019359.png";
 
 function assignProductImage(p: Product): Product {
   const skuKey = p.sku.toLowerCase();
@@ -105,56 +105,45 @@ async function startServer() {
     
     // Set target to 527 as requested by the user
     const targetCount = 527;
+    console.log(`[DATA] Catalog check: have ${products.length} items. Goal: ${targetCount}`);
 
-    if (products.length < targetCount && realProducts.length > 0) {
-      console.log(`[DATA] Expanding catalog from ${products.length} to ${targetCount} items...`);
-      const realBrands = Array.from(new Set(realProducts.map(p => p.brand)));
-      const realCategories = Array.from(new Set(realProducts.map(p => p.category)));
+    if (products.length < targetCount) {
+      console.log(`[DATA] Expanding catalog to ${targetCount} items...`);
+      
+      // Fallback base data if nothing loaded
+      const basePool = products.length > 0 ? [...products] : [{
+        id: "fb-1", sku: "GEN-TN", name: "Toner Compatibile", category: "Toner Compatibili", 
+        brand: "Brother", price: 12.90, availability: true, compatibility: ["MFC-L2710DW"], 
+        description: "Qualità garantita.", image: ""
+      }];
       
       const tonerModels = ["TN-2320", "TN-2420", "TN-247", "CE285A", "CF217A", "MLT-D111S", "MLT-D116L", "Q2612A"];
       const inkModels = ["603XL", "301XL", "302XL", "304XL", "305XL", "T1281", "T1291", "PGI-550", "CLI-551"];
       
-      for (let i = products.length; i < targetCount; i++) {
-        const base = realProducts[i % realProducts.length];
-        const brand = realBrands[i % realBrands.length] || "Generico";
-        const cat = realCategories[i % realCategories.length] || "Consumabili";
-        
+      const startIdx = products.length;
+      for (let i = startIdx; i < targetCount; i++) {
+        const base = basePool[i % basePool.length];
+        const brand = base.brand || "Generico";
+        const cat = base.category || "Consumabili";
         const isToner = cat.toLowerCase().includes('toner');
         const modelList = isToner ? tonerModels : inkModels;
         const model = modelList[i % modelList.length];
-        
-        const isOriginal = cat.includes('Originali');
-        const genName = `${cat.split(' ')[0]} ${isOriginal ? 'Originale' : 'Compatibile'} ${brand} Modello ${model} #${i}`;
+        const isOriginal = cat.includes('Originali') || cat.includes('Originale');
         
         products.push({
           id: `gen-${i}`,
-          sku: `${brand.slice(0, 2).toUpperCase()}-${model}-${1000 + i}`,
-          name: genName,
+          sku: `${brand.substring(0, 2).toUpperCase()}-${model}-${1000 + i}`,
+          name: `${cat.split(' ')[0]} ${isOriginal ? 'Originale' : 'Compatibile'} ${brand} ${model} #${i}`,
           category: cat,
           brand: brand,
           price: Number((Math.random() * (35 - 8) + 8).toFixed(2)),
           availability: Math.random() > 0.15,
-          compatibility: [`${brand} Series ${i % 100}`, `${brand} Professional ${i % 50}`, `${brand} SmartPrint ${i % 200}`],
-          description: `Consumabile professionale per stampanti ${brand}. Qualità garantita Ink&Print By Denise. Massima resa cromatica e affidabilità testata.`,
+          compatibility: [`${brand} Series ${i % 100}`, `${brand} Pro ${i % 50}`],
+          description: `Consumabile professionale per stampanti ${brand}. Qualità Ink&Print.`,
           image: ""
         });
       }
-    } else if (products.length === 0) {
-      console.warn("[DATA] No data found. Generating emergency fallback catalog.");
-      for (let i = 0; i < 50; i++) {
-        products.push({
-          id: `fallback-${i}`,
-          sku: `FB-${i}`,
-          name: `Prodotto Fallback #${i}`,
-          category: "Toner Compatibili",
-          brand: "Generico",
-          price: 19.99,
-          availability: true,
-          compatibility: ["Stampante Universale"],
-          description: "Database di emergenza caricato.",
-          image: ""
-        });
-      }
+      console.log(`[DATA] Catalog expansion finished. Total: ${products.length} products.`);
     }
 
     // Image mapping
@@ -169,7 +158,7 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json({ limit: '10mb' }));
+  app.use(express.json({ limit: '50mb' }));
 
 // Health check endpoint
   app.get("/api/health", (req, res) => {
@@ -332,43 +321,6 @@ async function startServer() {
     "ink-100-c": "/assets/images/toner_compat_cmy_premium_1779959002014.png"
   };
 
-  function getFramatekUrls(category: string, name: string): string[] {
-    const catLower = category.toLowerCase();
-    let folders = ["toner-compatibili"];
-    
-    if (catLower.includes("cartucc") && catLower.includes("compatibil")) {
-      folders = ["inkjet-compatibili"];
-    } else if (catLower.includes("originali") && catLower.includes("cartucc")) {
-      folders = ["consumabili-originali", "inkjet-originali"];
-    } else if (catLower.includes("originali") && catLower.includes("toner")) {
-      folders = ["consumabili-originali", "toner-originali"];
-    } else if (catLower.includes("originali")) {
-      folders = ["consumabili-originali"];
-    } else if (catLower.includes("drum") || catLower.includes("tambur")) {
-      folders = ["drum-e-tamburi"];
-    } else if (catLower.includes("inchiostr")) {
-      folders = ["inchiostri", "inkjet-compatibili"];
-    } else if (catLower.includes("smart") || name.toLowerCase().includes("tapo") || name.toLowerCase().includes("imou")) {
-      folders = ["tapo-tp-link-smart-home"];
-    } else if (catLower.includes("network") || name.toLowerCase().includes("access point") || name.toLowerCase().includes("switch")) {
-      folders = ["networking"];
-    } else if (catLower.includes("accessori") || name.toLowerCase().includes("adattatore") || name.toLowerCase().includes("webcam")) {
-      folders = ["accessori-pc"];
-    }
-
-    const slug = name.toLowerCase()
-      .replace(/[àáâãäå]/g, "a")
-      .replace(/[èéêë]/g, "e")
-      .replace(/[ìíîï]/g, "i")
-      .replace(/[òóôõö]/g, "o")
-      .replace(/[ùúûü]/g, "u")
-      .replace(/[ç]/g, "c")
-      .replace(/[^a-z0-9]/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "");
-
-    return folders.map(f => `https://www.framatek.com/${f}/${slug}`);
-  }
 
   app.get("/api/product-image-search", async (req, res) => {
     try {
@@ -402,36 +354,7 @@ async function startServer() {
         fallback = "https://images.unsplash.com/photo-1557318041-1ce374d55ebf?q=80&w=400"; // drum
       }
 
-      // Safe and smart dynamic lookup on Framatek
-      const framatekUrls = getFramatekUrls(category, name);
-      for (const fUrl of framatekUrls) {
-        try {
-          const controllerFt = new AbortController();
-          const timeoutFt = setTimeout(() => controllerFt.abort(), 1200);
-          const ftResponse = await fetch(fUrl, {
-            signal: controllerFt.signal,
-            headers: {
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
-              "Accept": "text/html"
-            }
-          });
-          clearTimeout(timeoutFt);
-          if (ftResponse.ok) {
-            const html = await ftResponse.text();
-            const ogMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
-                          html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
-            if (ogMatch && ogMatch[1]) {
-              const matchedImg = ogMatch[1];
-              imageCache.set(cacheKey, matchedImg);
-              return res.json({ image: matchedImg });
-            }
-          }
-        } catch (ftErr) {
-          // Continue to next option
-        }
-      }
-
-      // If we need to request dynamically, run an abort-guarded minimal timeout crawler to prevent server lockups
+      // Safe and smart dynamic lookup (Legacy crawler removed to avoid FrameTech branding)
       const brandClean = brand.toLowerCase().replace(/compatibile/gi, '').trim();
       const searchTerms = `${brandClean} ${sku} toner cartridge packaging`.trim();
       const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(searchTerms)}&tbm=isch`;
@@ -478,8 +401,30 @@ async function startServer() {
 
 
 
-  // Orders In-Memory Database
-  const orders: any[] = [];
+  // Orders Database Persistence
+  const ORDERS_PATH = path.join(process.cwd(), "src/data/orders.json");
+  let orders: any[] = [];
+
+  // Load existing orders on startup
+  try {
+    if (!fs.existsSync(path.dirname(ORDERS_PATH))) {
+      fs.mkdirSync(path.dirname(ORDERS_PATH), { recursive: true });
+    }
+    if (fs.existsSync(ORDERS_PATH)) {
+      orders = JSON.parse(fs.readFileSync(ORDERS_PATH, "utf8"));
+      console.log(`[DATA] Loaded ${orders.length} orders from disk.`);
+    }
+  } catch (err) {
+    console.error("[DATA ERROR] Failed to load orders:", err);
+  }
+
+  function saveOrders() {
+    try {
+      fs.writeFileSync(ORDERS_PATH, JSON.stringify(orders, null, 2), "utf8");
+    } catch (err) {
+      console.error("[DATA ERROR] Failed to save orders to disk:", err);
+    }
+  }
 
   const notifications: any[] = [];
 
@@ -742,6 +687,7 @@ async function startServer() {
 
       // Add to front of orders database
       orders.unshift(newOrder);
+      saveOrders();
 
       // Save order and customer to local memory database and firebase (handled in frontend)
 
@@ -798,6 +744,8 @@ async function startServer() {
       if (trackingCode) order.trackingCode = trackingCode;
       if (trackingUrl) order.trackingUrl = trackingUrl;
       if (typeof bollaGenerata !== "undefined") order.bollaGenerata = bollaGenerata;
+
+      saveOrders();
 
       // Send automated emails based on the status change
       if (status && status !== oldStatus) {
@@ -1144,23 +1092,25 @@ async function startServer() {
   // --- CATALOGO PRODUCT CSV IMPORT/EXPORT API ---
   app.get("/api/products/export-csv", (req, res) => {
     try {
+      console.log("[CSV EXPORT] Starting log export...");
       let csv = "sku,name,category,brand,price,availability,description\n";
       products.forEach(p => {
         const row = [
           p.sku,
-          `"${p.name.replace(/"/g, '""')}"`,
+          `"${(p.name || '').replace(/"/g, '""')}"`,
           p.category,
           p.brand,
-          p.price,
+          p.price || 0,
           p.availability ? "1" : "0",
           `"${(p.description || '').replace(/"/g, '""')}"`
         ];
         csv += row.join(",") + "\n";
       });
       res.setHeader("Content-Type", "text/csv; charset=utf-8");
-      res.setHeader("Content-Disposition", "attachment; filename=catalogo_prodotti.csv");
+      res.setHeader("Content-Disposition", "attachment; filename=catalogo_prodotti_inkprint.csv");
       res.send(csv);
     } catch (e: any) {
+      console.error("[CSV EXPORT ERROR]", e);
       res.status(500).send("Errore esportazione CSV: " + e.message);
     }
   });
@@ -1168,41 +1118,54 @@ async function startServer() {
   app.post("/api/products/import-csv", (req, res) => {
     try {
       const { csvText } = req.body;
+      console.log(`[CSV IMPORT] Request received. Body size: ${JSON.stringify(req.body).length} characters.`);
+      
       if (!csvText) {
-        return res.status(400).json({ error: "Contenuto CSV non fornito nella richiesta" });
+        console.warn("[CSV IMPORT] No csvText in body");
+        return res.status(400).json({ error: "Contenuto CSV mancante. Assicurati di non caricare file troppo pesanti (>50MB)." });
       }
 
+      console.log(`[CSV IMPORT] Parsing ${csvText.length} bytes of data...`);
+
+      // Flexible parsing: try to detect delimiter
       const records: any[] = parse(csvText, { 
         columns: true, 
         skip_empty_lines: true, 
         trim: true,
-        relax_column_count: true 
+        relax_column_count: true,
+        bom: true,
+        delimiter: csvText.includes(';') ? ';' : ','
       });
       
+      console.log(`[CSV IMPORT] Parsed ${records.length} records.`);
+
       if (records.length === 0) {
-        return res.status(400).json({ error: "Il file CSV non contiene dati validi." });
+        return res.status(400).json({ error: "Il file CSV non contiene righe di dati valide (intestazioni non trovate o file vuoto)." });
       }
 
       let updatedCount = 0;
       let newCount = 0;
       
-      records.forEach(record => {
-        const sku = record.sku || record.SKU || record.codice;
-        if (!sku) return;
+      records.forEach((record, idx) => {
+        const sku = (record.sku || record.SKU || record.codice || '').trim();
+        if (!sku) {
+          if (idx < 5) console.warn(`[CSV IMPORT] Row ${idx} skipped: no SKU found`, record);
+          return;
+        }
 
         const existingIdx = products.findIndex(p => p.sku.toLowerCase() === sku.toLowerCase());
         
         const newProduct: Product = {
-          id: record.id || record.ID || `import-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          id: record.id || record.ID || `import-${Date.now()}-${idx}-${Math.floor(Math.random() * 100)}`,
           sku: sku,
-          name: record.name || record.NAME || record.nome || "Nuovo Prodotto",
-          category: record.category || record.CATEGORY || record.categoria || "Senza Categoria",
+          name: record.name || record.NAME || record.nome || record.Descrizione || "Nuovo Prodotto",
+          category: record.category || record.CATEGORY || record.categoria || "Toner Compatibili",
           brand: record.brand || record.BRAND || record.marca || "Generico",
-          price: parseFloat(record.price || record.PRICE || record.prezzo) || 0,
-          availability: record.availability === "1" || record.availability === "true" || record.compatibility === "disponibile",
-          compatibility: record.compatibility ? record.compatibility.split(';').map((s: string) => s.trim()) : [],
+          price: parseFloat(String(record.price || record.PRICE || record.prezzo || '0').replace(',', '.')) || 0,
+          availability: record.availability === "1" || record.availability === "true" || record.availability === "disponibile" || record.disponibilità === "disponibile",
+          compatibility: record.compatibility ? String(record.compatibility).split(/[,;]/).map((s: string) => s.trim()) : [],
           description: record.description || record.DESCRIPTION || record.descrizione || "",
-          image: "" // Will be assigned below
+          image: "" 
         };
 
         const processedProduct = assignProductImage(newProduct);
@@ -1216,66 +1179,87 @@ async function startServer() {
         }
       });
 
-      // Persist locally if possible (to src/data/products.csv for reload survival)
+      console.log(`[CSV IMPORT] SUCCESS: ${newCount} new, ${updatedCount} updated.`);
+
+      // Persistence
       try {
-        const destPath = path.join(process.cwd(), "src/data/products.csv");
-        fs.writeFileSync(destPath, csvText, "utf8");
-      } catch (saveErr) {
-        console.warn("Could not persist CSV to filesystem:", saveErr);
+        const dataPath = path.join(process.cwd(), "src/data");
+        if (!fs.existsSync(dataPath)) fs.mkdirSync(dataPath, { recursive: true });
+        fs.writeFileSync(path.join(dataPath, "products.csv"), csvText, "utf8");
+      } catch (fse) {
+        console.error("[CSV IMPORT] Failed to write products.csv to disk", fse);
       }
 
       res.json({ 
         success: true, 
-        message: `Importazione CSV completata. ${newCount} nuovi prodotti aggiunti, ${updatedCount} aggiornati.`,
+        message: `Sincronizzazione completata! ${newCount} prodotti nuovi, ${updatedCount} aggiornati.`,
         updatedCount: newCount + updatedCount
       });
     } catch (e: any) {
-      console.error("CSV Import Error:", e);
-      res.status(500).json({ error: "Errore durante l'importazione del CSV: " + e.message });
+      console.error("[CSV IMPORT ERROR]", e);
+      res.status(500).json({ error: "Errore fatale parsing CSV: " + e.message });
     }
   });
 
   app.post("/api/products/import-images-csv", (req, res) => {
     try {
       const { csvText } = req.body;
+      console.log(`[IMAGE IMPORT] Request received. size: ${csvText?.length || 0}`);
+      
       if (!csvText) {
-        return res.status(400).json({ error: "Contenuto CSV immagini non fornito" });
+        return res.status(400).json({ error: "Contenuto mappatura mancante." });
       }
 
       const records: any[] = parse(csvText, { 
         columns: true, 
         skip_empty_lines: true, 
         trim: true,
-        relax_column_count: true 
+        relax_column_count: true,
+        delimiter: csvText.includes(';') ? ';' : ','
       });
 
       let mappedCount = 0;
       records.forEach(record => {
-        const sku = (record.sku || record.SKU || record.codice || "").toLowerCase();
-        const imageUrl = record.image || record.IMAGE || record.url || record.immagine;
+        const sku = (record.sku || record.SKU || record.codice || "").toLowerCase().trim();
+        const imageUrl = record.image || record.IMAGE || record.url || record.immagine || record.Foto;
         
         if (sku && imageUrl) {
           productImagesMap[sku] = imageUrl;
           mappedCount++;
           
-          // Apply immediately to current catalog
           const prod = products.find(p => p.sku.toLowerCase() === sku);
           if (prod) prod.image = imageUrl;
         }
       });
 
-      // Persist to file
-      const mappingsPath = path.join(process.cwd(), "src/data/image_mappings.json");
-      fs.writeFileSync(mappingsPath, JSON.stringify(productImagesMap, null, 2), "utf8");
+      // Persist
+      try {
+        const mappingsPath = path.join(process.cwd(), "src/data/image_mappings.json");
+        fs.writeFileSync(mappingsPath, JSON.stringify(productImagesMap, null, 2), "utf8");
+      } catch (se) {
+        console.error("[IMAGE IMPORT] Disk write failed", se);
+      }
 
       res.json({ 
         success: true, 
-        message: `Mappatura immagini completata. ${mappedCount} SKU collegati ad immagini personalizzate.`,
+        message: `Mappatura foto terminata. Allineati ${mappedCount} SKU.`,
         mappedCount 
       });
     } catch (e: any) {
-      console.error("Image Import Error:", e);
-      res.status(500).json({ error: "Errore importazione immagini: " + e.message });
+      console.error("[IMAGE IMPORT ERROR]", e);
+      res.status(500).json({ error: "Errore mappatura tabelle immagini: " + e.message });
+    }
+  });
+
+  // Global Error Handler Middleware
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error("[GLOBAL SERVER ERROR]", err);
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        error: "Errore interno del server", 
+        details: err.message,
+        path: req.path
+      });
     }
   });
 

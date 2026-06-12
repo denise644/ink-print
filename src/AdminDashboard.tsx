@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Package, TrendingUp, Clock, Search, Printer, RefreshCw, 
   FileText, Mail, Smartphone, Truck, Check, X, Shield, 
-  Download, Eye, AlertCircle, Lock, Settings, Layers, Inbox, ChevronRight, Key, Database
+  Download, Eye, AlertCircle, Lock, Settings, Layers, Inbox, ChevronRight, Key, Database, FileUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -111,8 +111,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
   const [quotes, setQuotes] = useState<any[]>([]);
   const [jobApplications, setJobApplications] = useState<any[]>([]);
   const [refunds, setRefunds] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   
-  const [dashboardTab, setDashboardTab] = useState<"overview" | "orders" | "refunds" | "quotes" | "settings" | "notifications" | "danea">("overview");
+  const [dashboardTab, setDashboardTab] = useState<"overview" | "orders" | "refunds" | "quotes" | "settings" | "notifications" | "danea" | "csv" | "images">("overview");
   const [xmlPreview, setXmlPreview] = useState<string>("");
   const [errorPreview, setErrorPreview] = useState<string>("");
   const [simXmlProducts, setSimXmlProducts] = useState<string>(
@@ -202,6 +203,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
   const [qPhone, setQPhone] = useState("");
   const [qVatId, setQVatId] = useState("");
 
+  const fetchProducts = async () => {
+    try {
+      const res = await fetch("/api/products");
+      if (res.ok) {
+        const data = await res.json();
+        setProducts(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch products for dashboard:", e);
+    }
+  };
+
   // Order update states
   const [statusVal, setStatusVal] = useState("");
   const [carrierVal, setCarrierVal] = useState("SDA");
@@ -242,6 +255,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
     if (entered === stored || entered === "inkeprint2026" || entered === "inkprint2026") {
       setIsAuthenticated(true);
       setErrorMsg("");
+      fetchProducts();
     } else {
       setErrorMsg("Codice di accesso non valido. Riprova.");
     }
@@ -266,6 +280,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
 
   const fetchDashboardData = async () => {
     setLoading(true);
+    fetchProducts();
     try {
       const res = await fetch("/api/admin/orders");
       if (res.ok) {
@@ -378,6 +393,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
     const reader = new FileReader();
     reader.onload = async (event) => {
       const text = event.target?.result as string;
+
+      // Detection of binary Excel format (XLSX/ZIP)
+      if (text && (text.includes("PK\x03\x04") || text.includes("Worksheet"))) {
+        setCsvFeedback("× ERRORE: Hai caricato un file Excel (.xlsx). Il sistema accetta solo CSV. Salva il tuo foglio Excel come 'CSV (delimitato da virgola)' e riprova.");
+        setIsCsvUploading(false);
+        return;
+      }
+
       if (!text) {
         setCsvFeedback("× Impossibile leggere il file CSV.");
         setIsCsvUploading(false);
@@ -391,7 +414,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
           body: JSON.stringify({ csvText: text })
         });
         
-        if (res.ok) {
+        const contentType = res.headers.get("content-type");
+        const isJson = contentType && contentType.includes("application/json");
+
+        if (res.ok && isJson) {
           const d = await res.json();
           if (d.success) {
             setSuccessCsvCount(d.updatedCount);
@@ -401,14 +427,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
               ...prev
             ]);
           } else {
-            setCsvFeedback(`× Errore nell'elaborazione: ${d.error || "Formato non idoneo"}`);
+            setCsvFeedback(`× Errore nell'elaborazione: ${d.error || "Formato non idoneo"}. Verifica che le intestazioni sku,price siano presenti.`);
           }
         } else {
-          const errorData = await res.json();
-          setCsvFeedback(`× Errore server: ${errorData.error || "Impossibile allineare i dati"}`);
+          const textResponse = await res.text();
+          let errorMessage = `Errore server (${res.status})`;
+          
+          if (isJson && textResponse) {
+            try {
+              const errObj = JSON.parse(textResponse);
+              errorMessage = errObj.error || errObj.message || errorMessage;
+            } catch (je) {
+              // Not actual JSON despite header
+            }
+          } else if (textResponse.includes("<!DOCTYPE html>") || textResponse.includes("<html>")) {
+            errorMessage = "Il server ha risposto con una pagina HTML invece di JSON. Controlla la rotta /api/products/import-csv.";
+          } else if (textResponse) {
+            errorMessage = textResponse.length > 80 ? textResponse.substring(0, 80) + "..." : textResponse;
+          }
+          
+          setCsvFeedback(`× ${errorMessage}`);
         }
       } catch (error: any) {
-        setCsvFeedback(`× Errore connessione: ${error.message}`);
+        setCsvFeedback(`× Errore di connessione: ${error.message}.`);
       } finally {
         setIsCsvUploading(false);
       }
@@ -428,6 +469,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
     const reader = new FileReader();
     reader.onload = async (event) => {
       const text = event.target?.result as string;
+
+      // Detection of binary Excel format (XLSX/ZIP)
+      if (text && (text.includes("PK\x03\x04") || text.includes("Worksheet"))) {
+        setImageCsvFeedback("× ERRORE: File Excel rilevato. Converti in CSV (delimitato da virgola) prima di caricare.");
+        setIsImageCsvUploading(false);
+        return;
+      }
+
       if (!text) {
         setImageCsvFeedback("× Impossibile leggere il file CSV.");
         setIsImageCsvUploading(false);
@@ -441,7 +490,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
           body: JSON.stringify({ csvText: text })
         });
         
-        if (res.ok) {
+        const contentType = res.headers.get("content-type");
+        const isJson = contentType && contentType.includes("application/json");
+
+        if (res.ok && isJson) {
           const d = await res.json();
           if (d.success) {
             setSuccessImageCount(d.mappedCount);
@@ -454,11 +506,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
             setImageCsvFeedback(`× Errore nell'elaborazione: ${d.error || "Formato non idoneo"}`);
           }
         } else {
-          const errorData = await res.json();
-          setImageCsvFeedback(`× Errore server: ${errorData.error || "Impossibile allineare i dati"}`);
+          const textResponse = await res.text();
+          let errorMessage = `Errore server (${res.status})`;
+          
+          if (isJson && textResponse) {
+            try {
+              const errObj = JSON.parse(textResponse);
+              errorMessage = errObj.error || errObj.message || errorMessage;
+            } catch (je) {
+              // Not actual JSON
+            }
+          } else if (textResponse.includes("<html>")) {
+            errorMessage = "Risposta server non valida (HTML).";
+          } else if (textResponse) {
+            errorMessage = textResponse.length > 80 ? textResponse.substring(0, 80) + "..." : textResponse;
+          }
+          
+          setImageCsvFeedback(`× ${errorMessage}`);
         }
       } catch (error: any) {
-        setImageCsvFeedback(`× Errore connessione: ${error.message}`);
+        setImageCsvFeedback(`× Errore di rete: ${error.message}`);
       } finally {
         setIsImageCsvUploading(false);
       }
@@ -609,7 +676,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
         name: item.name,
         quantity: item.quantity,
         price: item.price,
-        image: "https://www.framatek.com/2270-thickbox_default/cartuccia-compatibile-epson-t-603-xl-bk.jpg"
+        image: "/assets/images/toner_compat_bk_premium_1779958984462.png"
       })),
       total: Number(finalTotal.toFixed(2)),
       paymentMethod: `Fattura Differita B2B - Riferimento Preventivo ${quoteNumber}`,
@@ -1044,13 +1111,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
                   <span className="text-[10px] opacity-80 bg-slate-100 dark:bg-slate-800 text-slate-700 px-2 py-0.5 rounded-md font-bold">{notifications.length}</span>
                 </button>
                 <button 
-                  onClick={() => setDashboardTab("settings")}
-                  className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-xs uppercase font-black tracking-wider transition-all ${dashboardTab === 'settings' ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                  onClick={() => setDashboardTab("csv")}
+                  className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-xs uppercase font-black tracking-wider transition-all border ${dashboardTab === 'csv' ? 'bg-indigo-600 border-indigo-700 text-white shadow-lg shadow-indigo-100' : 'text-slate-750 bg-indigo-50/40 border-indigo-100 hover:bg-white hover:shadow-sm'}`}
                 >
-                  <span className="flex items-center gap-2"><Settings size={16} /> Sicurezza &amp; Password</span>
+                  <span className="flex items-center gap-2"><FileUp size={16} /> Caricamento CSV</span>
+                  <span className="bg-indigo-100 text-[9px] font-extrabold text-indigo-800 uppercase px-1.5 py-0.5 rounded border border-indigo-250 tracking-wider font-sans shrink-0">Listino</span>
+                </button>
+
+                <button 
+                  onClick={() => setDashboardTab("images")}
+                  className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-xs uppercase font-black tracking-wider transition-all border ${dashboardTab === 'images' ? 'bg-teal-600 border-teal-700 text-white shadow-lg shadow-teal-100' : 'text-slate-750 bg-teal-50/40 border-teal-100 hover:bg-white hover:shadow-sm'}`}
+                >
+                  <span className="flex items-center gap-2"><Layers size={16} /> Mappatura Immagini</span>
+                  <span className="bg-teal-100 text-[9px] font-extrabold text-teal-800 uppercase px-1.5 py-0.5 rounded border border-teal-250 tracking-wider font-sans shrink-0">Foto</span>
                 </button>
 
                 <div className="h-px bg-slate-150 my-2"></div>
+                
                 <button 
                   id="danea-tab-btn"
                   onClick={() => setDashboardTab("danea")}
@@ -1069,7 +1146,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
                   <div className="space-y-6">
                     {/* Brief KPI Cards Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                      <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-2">
+                      <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-2 cursor-pointer hover:border-indigo-400 transition-all" onClick={() => setDashboardTab("orders")}>
                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Entrate Totali (Ordini Activi)</span>
                         <div className="flex items-baseline gap-1">
                           <span className="text-2xl font-black text-slate-900 tracking-tight">€{totalFatturato.toFixed(2)}</span>
@@ -1077,7 +1154,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
                         <span className="text-[10px] text-emerald-600 font-bold block">✓ Valore transato e-commerce</span>
                       </div>
                       
-                      <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-2">
+                      <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-2 cursor-pointer hover:border-indigo-400 transition-all" onClick={() => setDashboardTab("orders")}>
                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Prodotti da Spedire</span>
                         <div className="flex items-baseline gap-1">
                           <span className="text-2xl font-black text-slate-900 tracking-tight">{ordersDaPreparare}</span>
@@ -1085,20 +1162,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
                         <span className="text-[10px] text-amber-600 font-bold block">⚡ In attesa di preparazione</span>
                       </div>
 
-                      <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-2">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Rimborsi in Sospeso</span>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-2xl font-black text-slate-900 tracking-tight">{rimborsiPendenti}</span>
-                        </div>
-                        <span className="text-[10px] text-slate-500 font-bold block">⟳ Moduli restituzioni telematiche</span>
-                      </div>
-
-                      <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-2">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Richieste Preventivi B2B</span>
+                      <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-2 cursor-pointer hover:border-indigo-400 transition-all" onClick={() => setDashboardTab("quotes")}>
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Richieste B2B Pendenti</span>
                         <div className="flex items-baseline gap-1">
                           <span className="text-2xl font-black text-slate-900 tracking-tight">{quotesPendenti}</span>
                         </div>
-                        <span className="text-[10px] text-red-500 font-semibold block">⚠ Contratti commerciali in attesa</span>
+                        <span className="text-[10px] text-slate-500 font-bold block">📄 Gestione preventivi</span>
+                      </div>
+
+                      <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-2 cursor-pointer hover:border-indigo-400 transition-all" onClick={() => setDashboardTab("csv")}>
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Prodotti in Catalogo</span>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-2xl font-black text-slate-900 tracking-tight">{products?.length || '...'}</span>
+                        </div>
+                        <span className="text-[10px] text-indigo-600 font-bold block">📋 Sincronizza ed Espandi</span>
                       </div>
                     </div>
 
@@ -1118,7 +1195,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
                       </div>
 
                       <div className="divide-y divide-slate-100">
-                        {orders.slice(0, 4).map((order) => (
+                        {(orders || []).slice(0, 4).map((order) => (
                           <div 
                             key={order.orderNumber}
                             onClick={() => {
@@ -1163,7 +1240,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
                           </div>
                         ) : (
                           <div className="space-y-3">
-                            {refunds.filter(r => r.status === "pending").slice(0, 3).map(r => (
+                            {(refunds || []).filter(r => r.status === "pending").slice(0, 3).map(r => (
                               <div 
                                 key={r.id}
                                 onClick={() => { selectRefund(r); setDashboardTab("refunds"); }}
@@ -1193,7 +1270,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
                           </div>
                         ) : (
                           <div className="space-y-3">
-                            {quotes.filter(q => q.status === "pending_review").slice(0, 3).map(q => (
+                            {(quotes || []).filter(q => q.status === "pending_review").slice(0, 3).map(q => (
                               <div 
                                 key={q.id}
                                 onClick={() => { selectQuote(q); setDashboardTab("quotes"); }}
@@ -1209,6 +1286,136 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onNaviga
                           </div>
                         )}
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* --- TAB CSV CATALOGO --- */}
+                {dashboardTab === "csv" && (
+                  <div className="max-w-4xl space-y-8">
+                    {/* CSV Exporting panel */}
+                    <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-5">
+                      <div>
+                        <span className="text-[9px] font-black tracking-widest text-slate-400 uppercase block font-mono">Moduli Esportazione Catalogo</span>
+                        <h4 className="font-extrabold text-sm text-slate-900 uppercase">Esporta Catalogo Prodotti CSV</h4>
+                        <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+                          Interroga ed esporta l'intero database di toner e cartucce in un file `.csv` editabile per fogli di calcolo (Excel, Numbers).
+                        </p>
+                      </div>
+
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 space-y-2">
+                        <div className="flex justify-between text-xs font-bold text-slate-700">
+                          <span>Numero Consumabili in Listino:</span>
+                          <span className="text-slate-900 font-black">{products?.length || 527} Record</span>
+                        </div>
+                        <div className="flex justify-between text-xs font-bold text-slate-700">
+                          <span>Stato database:</span>
+                          <span className="bg-white text-[9px] font-black border px-1.5 py-0.5 rounded text-emerald-600 uppercase">Sincronizzato</span>
+                        </div>
+                      </div>
+
+                      <div className="pt-2">
+                        <a
+                          href="/api/products/export-csv"
+                          className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-wider py-3 px-6 rounded-2xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
+                        >
+                          <Download size={16} />
+                          Esporta Catalogo CSV
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* CSV Importing panel */}
+                    <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="font-extrabold text-sm text-slate-900 uppercase">Carica Listino Prodotti CSV</h4>
+                          <p className="text-[11px] text-slate-500 leading-relaxed font-semibold">
+                            Aggiorna prezzi e giacenze caricando un CSV con intestazione <code className="bg-slate-100 font-mono text-[10px] px-1 rounded hover:bg-slate-200">sku,price,availability</code>.
+                          </p>
+                        </div>
+
+                        <div className="border-2 border-dashed border-slate-200 rounded-3xl p-6 text-center hover:bg-slate-50/50 hover:border-indigo-400 transition-all cursor-pointer relative bg-slate-50/20">
+                          <input 
+                            type="file" 
+                            accept=".csv"
+                            onChange={handleCsvFileChanged}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          />
+                          <div className="space-y-2">
+                            <span className="text-2xl block">📋</span>
+                            <span className="text-[11px] font-black text-slate-800 uppercase tracking-wide block">Sfoglia Listino CSV</span>
+                            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">Trascina qui il file o clicca per esplorare</p>
+                          </div>
+                        </div>
+
+                        {isCsvUploading && (
+                          <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-2xl p-3 text-indigo-700 text-[10px] font-bold uppercase">
+                            <span className="w-3 h-3 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
+                            Inviando dati al server...
+                          </div>
+                        )}
+
+                        {csvFeedback && (
+                          <div className={`p-3 rounded-2xl text-[10px] font-bold ${successCsvCount !== null ? "bg-green-50 border border-green-200 text-green-700" : "bg-rose-50 border border-rose-200 text-rose-700"}`}>
+                            {csvFeedback}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* --- TAB MAPPATURA IMMAGINI --- */}
+                {dashboardTab === "images" && (
+                  <div className="max-w-4xl bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="font-extrabold text-sm text-slate-900 uppercase">Gestione Mappatura Immagini</h4>
+                        <p className="text-[11px] text-slate-500 leading-relaxed font-semibold">
+                          Allinea le foto dei prodotti caricando un CSV con intestazione <code className="bg-slate-100 font-mono text-[10px] px-1 rounded hover:bg-slate-200">sku,image</code>.
+                        </p>
+                      </div>
+
+                      <div className="border-2 border-dashed border-slate-200 rounded-3xl p-8 text-center hover:bg-slate-50/50 hover:border-blue-400 transition-all cursor-pointer relative bg-slate-50/20">
+                        <input 
+                          type="file" 
+                          accept=".csv"
+                          onChange={handleImageCsvFileChanged}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                        <div className="space-y-3">
+                          <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 mx-auto">
+                            <Layers size={32} />
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-[13px] font-black text-slate-800 uppercase tracking-wide block">Carica Mappatura Foto</span>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Collega URL immagini alle codifiche prodotti (SKU)</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {isImageCsvUploading && (
+                        <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-2xl p-3 text-blue-700 text-[10px] font-bold uppercase">
+                          <span className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
+                          Configurando immagini catalogate...
+                        </div>
+                      )}
+
+                      {imageCsvFeedback && (
+                        <div className={`p-4 rounded-2xl text-[11px] font-bold ${successImageCount !== null ? "bg-green-50 border border-green-200 text-green-700" : "bg-rose-50 border border-rose-200 text-rose-700"}`}>
+                          {imageCsvFeedback}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 space-y-2">
+                       <h5 className="text-[10px] font-black text-amber-800 uppercase flex items-center gap-1"><AlertCircle size={14} /> Istruzioni Mappatura</h5>
+                       <p className="text-[10px] text-amber-700 font-semibold leading-relaxed">
+                          Il file deve essere un CSV con separatore virgola (,) o punto e virgola (;).<br/>
+                          Le colonne minime richieste sono <strong>sku</strong> e <strong>image</strong>.<br/>
+                          La colonna <strong>image</strong> deve contenere l'URL completo dell'immagine (es: https://esempio.it/foto.jpg).
+                       </p>
                     </div>
                   </div>
                 )}
